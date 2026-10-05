@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  quality-check:
+    name: Lint, Typecheck, Tests & Build (Live PG + GiST)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: yoyaku_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      POSTGRES_URL: postgres://postgres:postgres@localhost:5432/yoyaku_db
+      AUTH_SECRET: ci-test-secret-at-least-32-chars-long-1234567890
+      BASE_URL: http://localhost:3000
+      DEFAULT_RESTAURANT_SLUG: kyoto-shabu
+      NEXT_PUBLIC_DEFAULT_RESTAURANT_SLUG: kyoto-shabu
+      DEMO_MODE: "false"
+      CRON_SECRET: ci-cron-secret-at-least-32-chars-long-1234567890
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "lts/*"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Initialize Database (Extensions, Migrations, GiST, Seeds)
+        run: pnpm db:init
+
+      - name: Biome Check (Format & Lint)
+        run: pnpm biome check
+
+      - name: TypeScript Typecheck
+        run: pnpm typecheck
+
+      - name: Run Test Suite (Concurrency, Exclusion Constraints, Auth, Cron Reset)
+        run: pnpm test
+
+      - name: Production Build
+        run: pnpm build

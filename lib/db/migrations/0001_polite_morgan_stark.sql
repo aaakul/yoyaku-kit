@@ -1,0 +1,1 @@
+ALTER TABLE "news" ADD COLUMN "content" text DEFAULT '' NOT NULL;
