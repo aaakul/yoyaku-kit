@@ -4,11 +4,14 @@ A lightweight Japanese restaurant reservation and table management system built 
 
 Designed specifically for small, single-location restaurants in Japan, it provides localized usage experience.
 
+[Live demo](https://yoyaku-kit-demo.vercel.app)
+
 ## Features
 
 ### Customer
 
 ![booking](./docs/images/booking.png)
+![reservation](./docs/images/reservation.png)
 
 - Book a table without creating an account
 - Receive an independent, human-readable 6-character reservation number

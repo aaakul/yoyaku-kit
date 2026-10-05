@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     default: `${restaurantConfig.name} | ${restaurantConfig.tagline}`,
     template: `%s | ${restaurantConfig.name}`,
   },
-  description: restaurantConfig.summary,
+  description: `${restaurantConfig.summary} |r Yoyaku Kitは、小規模飲食店向けの予約・テーブル管理システムです。An open-source restaurant reservation and table management system built with Next.js 16 and PostgreSQL for small restaurants in Japan.`,
   robots: {
     index: true,
     follow: true,
