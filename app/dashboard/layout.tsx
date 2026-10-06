@@ -15,6 +15,8 @@ export const metadata: Metadata = {
   },
 };
 
+export const instant = false;
+
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const user = await getUser();
   if (!user) {

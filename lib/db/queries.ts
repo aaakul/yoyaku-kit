@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { and, asc, desc, eq, gte, lte } from "drizzle-orm";
 import { headers } from "next/headers";
+import { cache } from "react";
 import { DEFAULT_RESTAURANT_SLUG } from "@/config/restaurant";
 import { auth } from "@/lib/auth/better-auth";
 import { addDays } from "@/lib/utils";
@@ -24,7 +25,7 @@ export function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }
 
-export async function getUser(): Promise<User | null> {
+export const getUser = cache(async (): Promise<User | null> => {
   try {
     const session = await auth.api.getSession({
       headers: await headers(),
@@ -38,54 +39,57 @@ export async function getUser(): Promise<User | null> {
   } catch {
     return null;
   }
-}
+});
 
-export async function getUsers(): Promise<User[]> {
+export const getUsers = cache(async (): Promise<User[]> => {
   return await db.select().from(user).orderBy(asc(user.role), desc(user.createdAt));
-}
+});
 
-export async function getRestaurant(slug = DEFAULT_RESTAURANT_SLUG): Promise<Restaurant | null> {
-  const result = await db.select().from(restaurants).where(eq(restaurants.slug, slug)).limit(1);
+export const getRestaurant = cache(
+  async (slug = DEFAULT_RESTAURANT_SLUG): Promise<Restaurant | null> => {
+    const result = await db.select().from(restaurants).where(eq(restaurants.slug, slug)).limit(1);
 
-  return result[0] || null;
-}
+    return result[0] || null;
+  },
+);
 
-export async function getNewsList(
-  restaurantId: string,
-  onlyPublished = false,
-): Promise<NewsItem[]> {
-  const conditions = [eq(news.restaurantId, restaurantId)];
-  if (onlyPublished) {
-    conditions.push(eq(news.isPublished, true));
-  }
+export const getNewsList = cache(
+  async (restaurantId: string, onlyPublished = false): Promise<NewsItem[]> => {
+    const conditions = [eq(news.restaurantId, restaurantId)];
+    if (onlyPublished) {
+      conditions.push(eq(news.isPublished, true));
+    }
 
-  return await db
-    .select()
-    .from(news)
-    .where(and(...conditions))
-    .orderBy(asc(news.sortOrder), desc(news.publishedAt), desc(news.createdAt));
-}
+    return await db
+      .select()
+      .from(news)
+      .where(and(...conditions))
+      .orderBy(asc(news.sortOrder), desc(news.publishedAt), desc(news.createdAt));
+  },
+);
 
-export async function getNewsItem(id: string): Promise<NewsItem | null> {
+export const getNewsItem = cache(async (id: string): Promise<NewsItem | null> => {
   const result = await db.select().from(news).where(eq(news.id, id)).limit(1);
   return result[0] || null;
-}
+});
 
-export async function getRestaurantTables(restaurantId: string): Promise<RestaurantTable[]> {
-  return await db
-    .select()
-    .from(restaurantTables)
-    .where(eq(restaurantTables.restaurantId, restaurantId))
-    .orderBy(restaurantTables.capacity, restaurantTables.name);
-}
+export const getRestaurantTables = cache(
+  async (restaurantId: string): Promise<RestaurantTable[]> => {
+    return await db
+      .select()
+      .from(restaurantTables)
+      .where(eq(restaurantTables.restaurantId, restaurantId))
+      .orderBy(restaurantTables.capacity, restaurantTables.name);
+  },
+);
 
-export async function getBusinessHours(restaurantId: string): Promise<BusinessHour[]> {
+export const getBusinessHours = cache(async (restaurantId: string): Promise<BusinessHour[]> => {
   return await db
     .select()
     .from(businessHours)
     .where(eq(businessHours.restaurantId, restaurantId))
     .orderBy(businessHours.openTime);
-}
+});
 
 export async function getReservations(options?: {
   restaurantId?: string;
@@ -140,7 +144,7 @@ export async function getReservations(options?: {
 
 export type ReservationSummary = Awaited<ReturnType<typeof getReservations>>[number];
 
-export async function getReservationByToken(rawToken: string) {
+export const getReservationByToken = cache(async (rawToken: string) => {
   const tokenHash = hashToken(rawToken);
 
   const result = await db
@@ -156,7 +160,7 @@ export async function getReservationByToken(rawToken: string) {
     .limit(1);
 
   return result[0] || null;
-}
+});
 
 export interface GetReservationLogsOptions {
   reservationId?: string;

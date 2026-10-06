@@ -1,7 +1,7 @@
 "use server";
 
 import { eq } from "drizzle-orm";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { assertManager } from "@/lib/auth/middleware";
 import { db } from "@/lib/db/drizzle";
 import { news } from "@/lib/db/schema";
@@ -44,6 +44,7 @@ export async function createNewsAction(data: {
 
     revalidatePath("/");
     revalidatePath("/dashboard/news");
+    updateTag("news");
     return { success: true, item };
   } catch (err: unknown) {
     const error = err as { message?: string } | undefined;
@@ -95,6 +96,7 @@ export async function updateNewsAction(data: {
     revalidatePath("/");
     revalidatePath(`/news/${data.id}`);
     revalidatePath("/dashboard/news");
+    updateTag("news");
     return { success: true, item };
   } catch (err: unknown) {
     const error = err as { message?: string } | undefined;
@@ -114,6 +116,7 @@ export async function toggleNewsPublishedAction(id: string, isPublished: boolean
     revalidatePath("/");
     revalidatePath(`/news/${id}`);
     revalidatePath("/dashboard/news");
+    updateTag("news");
     return { success: true };
   } catch (err: unknown) {
     const error = err as { message?: string } | undefined;
@@ -133,6 +136,7 @@ export async function deleteNewsAction(id: string) {
     revalidatePath("/");
     revalidatePath(`/news/${id}`);
     revalidatePath("/dashboard/news");
+    updateTag("news");
     return { success: true };
   } catch (err: unknown) {
     const error = err as { message?: string } | undefined;
@@ -156,6 +160,7 @@ export async function reorderNewsAction(newsIds: string[]) {
 
     revalidatePath("/");
     revalidatePath("/dashboard/news");
+    updateTag("news");
     return { success: true };
   } catch (err: unknown) {
     const error = err as { message?: string } | undefined;

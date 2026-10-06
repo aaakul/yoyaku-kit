@@ -36,9 +36,13 @@ interface TableRecord {
   active: boolean;
 }
 
-export function TablesClient() {
-  const [tables, setTables] = useState<TableRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+export interface TablesClientProps {
+  initialTables?: TableRecord[];
+}
+
+export function TablesClient({ initialTables }: TablesClientProps = {}) {
+  const [tables, setTables] = useState<TableRecord[]>(initialTables ?? []);
+  const [loading, setLoading] = useState(initialTables === undefined);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTable, setEditingTable] = useState<TableRecord | null>(null);
 
@@ -71,13 +75,15 @@ export function TablesClient() {
   }, []);
 
   useEffect(() => {
-    loadTables();
+    if (initialTables === undefined) {
+      loadTables();
+    }
     const handleRefresh = () => {
       loadTables();
     };
     window.addEventListener("dashboard:refresh", handleRefresh);
     return () => window.removeEventListener("dashboard:refresh", handleRefresh);
-  }, [loadTables]);
+  }, [loadTables, initialTables]);
 
   const openAddModal = () => {
     setEditingTable(null);

@@ -9,6 +9,8 @@ export const metadata: Metadata = {
   description: "管理者およびスタッフアカウントの管理",
 };
 
+export const instant = false;
+
 export default async function AccountsPage() {
   const currentUser = await getUser();
   if (!currentUser) {

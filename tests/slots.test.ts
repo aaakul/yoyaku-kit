@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { formatTime, parseDateTime } from "@/lib/engine/slots";
+import {
+  computeTimelineSlotPosition,
+  formatTimelineHour,
+} from "@/components/dashboard/timeline-view";
+import { formatTime, getAvailableSlots, parseDateTime } from "@/lib/engine/slots";
+import { addDays, formatDisplayTime } from "@/lib/utils";
 
 describe("Timezone & Overnight Slot Calculations (Asia/Tokyo)", () => {
   it("should accurately convert Tokyo date and time to UTC Date", () => {
@@ -20,7 +25,6 @@ describe("Timezone & Overnight Slot Calculations (Asia/Tokyo)", () => {
   });
 
   it("should return available slots for valid business days", async () => {
-    const { getAvailableSlots } = await import("@/lib/engine/slots");
     const slots = await getAvailableSlots({ date: "2026-10-15", partySize: 2 });
     expect(slots.length).toBeGreaterThan(0);
     const availableSlot = slots.find((s) => s.available);
@@ -29,14 +33,12 @@ describe("Timezone & Overnight Slot Calculations (Asia/Tokyo)", () => {
   });
 
   it("should return empty slots on regular closed days (Monday)", async () => {
-    const { getAvailableSlots } = await import("@/lib/engine/slots");
     // 2026-10-19 is Monday
     const slots = await getAvailableSlots({ date: "2026-10-19", partySize: 2 });
     expect(slots).toEqual([]);
   });
 
   it("should include midnight slots (00:00 and 00:30) for overnight shift", async () => {
-    const { getAvailableSlots } = await import("@/lib/engine/slots");
     // 2026-10-15 is Thursday (open business day)
     const slots = await getAvailableSlots({ date: "2026-10-15", partySize: 2 });
     const slotTimes = slots.map((s) => s.time);
@@ -49,8 +51,7 @@ describe("Timezone & Overnight Slot Calculations (Asia/Tokyo)", () => {
 });
 
 describe("Timeline Date Navigation", () => {
-  it("should advance and step backwards correctly across month and year boundaries", async () => {
-    const { addDays } = await import("@/lib/utils");
+  it("should advance and step backwards correctly across month and year boundaries", () => {
     expect(addDays("2026-10-02", 1)).toBe("2026-10-03");
     expect(addDays("2026-10-31", 1)).toBe("2026-11-01");
     expect(addDays("2026-12-31", 1)).toBe("2027-01-01");
@@ -59,8 +60,7 @@ describe("Timeline Date Navigation", () => {
 });
 
 describe("Timeline View Hours & Overnight Slot Positioning", () => {
-  it("should format standard and overnight hours correctly", async () => {
-    const { formatTimelineHour } = await import("@/components/dashboard/timeline-view");
+  it("should format standard and overnight hours correctly", () => {
     expect(formatTimelineHour(11)).toBe("11:00");
     expect(formatTimelineHour(18)).toBe("18:00");
     expect(formatTimelineHour(23)).toBe("23:00");
@@ -69,9 +69,7 @@ describe("Timeline View Hours & Overnight Slot Positioning", () => {
     expect(formatTimelineHour(26)).toBe("翌02:00");
   });
 
-  it("should position midnight and overnight slots accurately on the right side and never at the far left", async () => {
-    const { computeTimelineSlotPosition } = await import("@/components/dashboard/timeline-view");
-
+  it("should position midnight and overnight slots accurately on the right side and never at the far left", () => {
     // 11:00 is at the start (0%)
     const openPos = computeTimelineSlotPosition("11:00");
     expect(openPos.leftPercent).toBeCloseTo(0, 1);
@@ -102,8 +100,7 @@ describe("Timeline View Hours & Overnight Slot Positioning", () => {
     expect(overnightPos.widthPercent).toBeCloseTo(10, 1);
   });
 
-  it("should format display time with overnight prefix for early morning / midnight slots", async () => {
-    const { formatDisplayTime } = await import("@/lib/utils");
+  it("should format display time with overnight prefix for early morning / midnight slots", () => {
     expect(formatDisplayTime("00:00")).toBe("翌00:00");
     expect(formatDisplayTime("00:30")).toBe("翌00:30");
     expect(formatDisplayTime("01:15")).toBe("翌01:15");

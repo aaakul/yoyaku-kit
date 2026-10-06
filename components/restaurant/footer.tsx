@@ -88,13 +88,13 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-8 border-t border-stone-850 pt-6 text-center text-xs text-stone-500">
+        <div className="mt-8 border-t border-stone-850 pt-6 text-center text-xs">
           Made with{" "}
           <a
             href="https://github.com/aaakul/yoyaku-kit"
             target="_blank"
             rel="noopener noreferrer"
-            className="font-medium text-stone-400 underline decoration-stone-600 underline-offset-4 transition hover:text-stone-200 hover:decoration-stone-400"
+            className="font-medium underline underline-offset-4 transition hover:text-stone-200 hover:decoration-stone-400"
           >
             yoyaku-kit
           </a>

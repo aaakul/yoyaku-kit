@@ -1,6 +1,19 @@
+import { hashPassword } from "better-auth/crypto";
+import { eq } from "drizzle-orm";
 import { describe, expect, it, vi } from "vitest";
 import { POST } from "@/app/api/auth/[...all]/route";
+import { deleteStaffAccount, updateAccount, updateUserRole } from "@/lib/auth/actions";
 import { auth } from "@/lib/auth/better-auth";
+import { localizeAuthError } from "@/lib/auth/errors";
+import { assertManager, canViewManagerPages } from "@/lib/auth/middleware";
+import { db } from "@/lib/db/drizzle";
+import * as queries from "@/lib/db/queries";
+import { account, reservationLogs, reservations, user } from "@/lib/db/schema";
+import {
+  createReservationAction,
+  updateReservationStatusAction,
+} from "@/lib/engine/reservation-actions";
+import { AUTH_ERROR, RESERVATION_ERROR } from "@/lib/errors/codes";
 
 describe("Authentication Flow", () => {
   it("authenticates admin credentials via API and issues session cookie", async () => {
@@ -50,8 +63,6 @@ describe("Authentication Flow", () => {
   });
 
   it("localizes common Better Auth error codes properly", async () => {
-    const { localizeAuthError } = await import("@/lib/auth/errors");
-
     expect(localizeAuthError({ code: "INVALID_EMAIL_OR_PASSWORD" })).toBe(
       "メールアドレスまたはパスワードが正しくありません。",
     );
@@ -73,8 +84,7 @@ describe("Staff Account Management & RBAC Flow", () => {
   let testStaffId = "";
 
   it("retrieves users list with role information via getUsers", async () => {
-    const { getUsers } = await import("@/lib/db/queries");
-    const users = await getUsers();
+    const users = await queries.getUsers();
     expect(users.length).toBeGreaterThan(0);
     const admin = users.find((u) => u.email === "admin@example.com");
     expect(admin).toBeDefined();
@@ -82,11 +92,6 @@ describe("Staff Account Management & RBAC Flow", () => {
   });
 
   it("creates a staff user and authenticates successfully with role=staff", async () => {
-    const { db } = await import("@/lib/db/drizzle");
-    const { user, account } = await import("@/lib/db/schema");
-    const { hashPassword } = await import("better-auth/crypto");
-    const { eq } = await import("drizzle-orm");
-
     // Clean up if existing
     await db.delete(user).where(eq(user.email, testStaffEmail));
 
@@ -140,10 +145,6 @@ describe("Staff Account Management & RBAC Flow", () => {
   });
 
   it("allows promoting staff to manager and demoting back", async () => {
-    const { db } = await import("@/lib/db/drizzle");
-    const { user } = await import("@/lib/db/schema");
-    const { eq } = await import("drizzle-orm");
-
     // Promote to manager
     await db.update(user).set({ role: "manager" }).where(eq(user.id, testStaffId));
 
@@ -161,7 +162,6 @@ describe("Staff Account Management & RBAC Flow", () => {
   });
 
   it("strictly enforces assertManager guard against staff users", async () => {
-    const { assertManager } = await import("@/lib/auth/middleware");
     // When no manager session is present, assertManager must throw
     await expect(assertManager()).rejects.toThrow();
   });
@@ -172,7 +172,6 @@ describe("Demo Account & Read-Only Enforcement", () => {
   let testDemoId = "";
 
   it("verifies canViewManagerPages allows manager and demo but denies staff", async () => {
-    const { canViewManagerPages } = await import("@/lib/auth/middleware");
     expect(canViewManagerPages("manager")).toBe(true);
     expect(canViewManagerPages("demo")).toBe(true);
     expect(canViewManagerPages("staff")).toBe(false);
@@ -181,11 +180,6 @@ describe("Demo Account & Read-Only Enforcement", () => {
   });
 
   it("creates a demo user and authenticates successfully with role=demo", async () => {
-    const { db } = await import("@/lib/db/drizzle");
-    const { user, account } = await import("@/lib/db/schema");
-    const { hashPassword } = await import("better-auth/crypto");
-    const { eq } = await import("drizzle-orm");
-
     await db.delete(user).where(eq(user.email, testDemoEmail));
 
     const hashedPassword = await hashPassword("demopass123");
@@ -237,9 +231,6 @@ describe("Demo Account & Read-Only Enforcement", () => {
   });
 
   it("prevents changing role or deleting demo account in staff management", async () => {
-    const { updateUserRole, deleteStaffAccount } = await import("@/lib/auth/actions");
-    const queries = await import("@/lib/db/queries");
-
     // Simulate logged in manager
     const spy = vi.spyOn(queries, "getUser").mockResolvedValue({
       id: "mock-manager-id",
@@ -257,7 +248,6 @@ describe("Demo Account & Read-Only Enforcement", () => {
     roleFormData.append("role", "staff");
 
     // Attempt to update role of demo user
-    const { AUTH_ERROR } = await import("@/lib/errors/codes");
     const updateRes = await updateUserRole({}, roleFormData);
     expect("code" in updateRes && updateRes.code).toBe(AUTH_ERROR.CANNOT_MODIFY_DEMO);
 
@@ -271,12 +261,6 @@ describe("Demo Account & Read-Only Enforcement", () => {
   });
 
   it("blocks demo users from mutating account profile or performing writes", async () => {
-    const { updateAccount } = await import("@/lib/auth/actions");
-    const { assertManager } = await import("@/lib/auth/middleware");
-    const { updateReservationStatusAction } = await import("@/lib/engine/reservation-actions");
-    const { AUTH_ERROR, RESERVATION_ERROR } = await import("@/lib/errors/codes");
-    const queries = await import("@/lib/db/queries");
-
     // Simulate logged in demo user
     const spy = vi.spyOn(queries, "getUser").mockResolvedValue({
       id: testDemoId,
@@ -308,14 +292,51 @@ describe("Demo Account & Read-Only Enforcement", () => {
       expect(rsvRes.code).toBe(RESERVATION_ERROR.DEMO_RESTRICTED);
     }
 
+    // 4. Staff manual reservation from dashboard blocked for demo
+    const staffBookingRes = await createReservationAction({
+      source: "staff",
+      date: "2026-10-20",
+      time: "18:00",
+      partySize: 2,
+      customerName: "佐藤 健一",
+      customerNameKana: "サトウ ケンイチ",
+      customerPhone: "090-1234-5678",
+      customerEmail: "sato@example.com",
+    });
+    expect(staffBookingRes.success).toBe(false);
+    if (!staffBookingRes.success) {
+      expect(staffBookingRes.code).toBe(RESERVATION_ERROR.DEMO_RESTRICTED);
+    }
+
+    // 5. Customer web reservation at /reserve is NOT blocked for logged in demo account
+    const webBookingRes = await createReservationAction({
+      source: "web",
+      date: "2026-10-20",
+      time: "18:00",
+      partySize: 2,
+      customerName: "佐藤 健一",
+      customerNameKana: "サトウ ケンイチ",
+      customerPhone: "090-1234-5678",
+      customerEmail: "sato@example.com",
+    });
+    expect(webBookingRes.success).toBe(true);
+    if (webBookingRes.success) {
+      const [log] = await db
+        .select()
+        .from(reservationLogs)
+        .where(eq(reservationLogs.reservationId, webBookingRes.reservationId));
+      expect(log).toBeDefined();
+      expect(log?.operatorRole).toBe("customer");
+      expect(log?.operatorId).toBeNull();
+      expect(log?.note).toBe("お客様によるウェブ予約");
+
+      await db.delete(reservations).where(eq(reservations.id, webBookingRes.reservationId));
+    }
+
     spy.mockRestore();
   });
 
   it("cleans up test demo user", async () => {
-    const { db } = await import("@/lib/db/drizzle");
-    const { user } = await import("@/lib/db/schema");
-    const { eq } = await import("drizzle-orm");
-
     await db.delete(user).where(eq(user.id, testDemoId));
   });
 });

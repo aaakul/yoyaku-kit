@@ -13,6 +13,8 @@ export const metadata: Metadata = {
   },
 };
 
+export const instant = false;
+
 export default async function SignInPage() {
   const user = await getUser();
   if (user) {

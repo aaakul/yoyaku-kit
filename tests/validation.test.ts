@@ -3,6 +3,12 @@ import { DEFAULT_RESTAURANT_SLUG } from "@/config/restaurant";
 import { createReservationAction } from "@/lib/engine/reservation-actions";
 import { RESERVATION_ERROR } from "@/lib/errors/codes";
 import {
+  createStaffAccountSchema,
+  signInSchema,
+  updatePasswordSchema,
+} from "@/lib/validations/auth";
+import { newsItemSchema } from "@/lib/validations/cms";
+import {
   createReservationSchema,
   getTokyoTodayStart,
   reservationSchema,
@@ -287,9 +293,7 @@ describe("Reservation Form Validation (Zod SSOT & Two-Tier Architecture)", () =>
 });
 
 describe("Auth Schemas Validation (SSOT)", () => {
-  it("validates signInSchema requirements", async () => {
-    const { signInSchema } = await import("@/lib/validations/auth");
-
+  it("validates signInSchema requirements", () => {
     expect(
       signInSchema.safeParse({
         email: "admin@example.com",
@@ -302,9 +306,7 @@ describe("Auth Schemas Validation (SSOT)", () => {
     );
   });
 
-  it("validates createStaffAccountSchema rules and role enum", async () => {
-    const { createStaffAccountSchema } = await import("@/lib/validations/auth");
-
+  it("validates createStaffAccountSchema rules and role enum", () => {
     expect(
       createStaffAccountSchema.safeParse({
         name: "田中 太郎",
@@ -342,9 +344,7 @@ describe("Auth Schemas Validation (SSOT)", () => {
     ).toBe(false);
   });
 
-  it("validates updatePasswordSchema confirmation matching", async () => {
-    const { updatePasswordSchema } = await import("@/lib/validations/auth");
-
+  it("validates updatePasswordSchema confirmation matching", () => {
     expect(
       updatePasswordSchema.safeParse({
         currentPassword: "oldpassword1",
@@ -366,9 +366,7 @@ describe("Auth Schemas Validation (SSOT)", () => {
 });
 
 describe("CMS Schemas Validation (SSOT)", () => {
-  it("validates newsItemSchema", async () => {
-    const { newsItemSchema } = await import("@/lib/validations/cms");
-
+  it("validates newsItemSchema", () => {
     expect(
       newsItemSchema.safeParse({
         title: "秋の特別コース開始",

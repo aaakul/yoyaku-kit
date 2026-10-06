@@ -2,6 +2,7 @@ import { eq, inArray, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DEFAULT_RESTAURANT_SLUG } from "@/config/restaurant";
 import { db } from "@/lib/db/drizzle";
+import { getReservations } from "@/lib/db/queries";
 import { reservationLogs, reservations, restaurants, restaurantTables } from "@/lib/db/schema";
 import {
   cancelReservationAction,
@@ -588,7 +589,6 @@ describe("Live PostgreSQL Integration & Concurrency Verification", () => {
   });
 
   it("should retrieve overnight midnight reservations when querying by shift serviceDate", async () => {
-    const { getReservations } = await import("@/lib/db/queries");
     const targetServiceDate = "2026-10-23"; // Friday
 
     const res = await createReservationAction({

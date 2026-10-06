@@ -135,7 +135,7 @@
       var(--font-sans), "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
   }
   .font-serif {
-    font-family: var(--font-serif), "Hiragino Mincho ProN", "Yu Mincho", serif;
+    font-family: "Hiragino Mincho ProN", "Yu Mincho", "BIZ UDPMincho", serif;
   }
   .washi-bg {
     background-color: var(--background);

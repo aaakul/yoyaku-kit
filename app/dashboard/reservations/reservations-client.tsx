@@ -46,9 +46,13 @@ import {
   type ReservationStatus,
 } from "@/lib/utils";
 
-export function ReservationsClient() {
-  const [reservations, setReservations] = useState<ReservationItem[]>([]);
-  const [loading, setLoading] = useState(true);
+export interface ReservationsClientProps {
+  initialReservations?: ReservationItem[];
+}
+
+export function ReservationsClient({ initialReservations }: ReservationsClientProps = {}) {
+  const [reservations, setReservations] = useState<ReservationItem[]>(initialReservations ?? []);
+  const [loading, setLoading] = useState(initialReservations === undefined);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sessionFilter, setSessionFilter] = useState<string>("all");
@@ -69,13 +73,15 @@ export function ReservationsClient() {
   }, []);
 
   useEffect(() => {
-    loadReservations(selectedDate);
+    if (selectedDate !== "" || initialReservations === undefined) {
+      loadReservations(selectedDate);
+    }
     const handleRefresh = () => {
       loadReservations(selectedDate);
     };
     window.addEventListener("dashboard:refresh", handleRefresh);
     return () => window.removeEventListener("dashboard:refresh", handleRefresh);
-  }, [selectedDate, loadReservations]);
+  }, [selectedDate, loadReservations, initialReservations]);
 
   const [newCustomerName, setNewCustomerName] = useState("");
   const [newCustomerKana, setNewCustomerKana] = useState("");
@@ -181,6 +187,7 @@ export function ReservationsClient() {
     try {
       const res = await createReservationAction({
         restaurantSlug: DEFAULT_RESTAURANT_SLUG,
+        source: "staff",
         date: newDate,
         time: newTime,
         partySize: parseInt(newPartySize, 10) || 2,

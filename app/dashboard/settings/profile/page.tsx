@@ -8,6 +8,8 @@ export const metadata: Metadata = {
   description: "アカウントのプロフィールおよびパスワード設定",
 };
 
+export const instant = false;
+
 export default async function ProfilePage() {
   const user = await getUser();
   if (!user) {

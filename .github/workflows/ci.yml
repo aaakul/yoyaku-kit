@@ -8,7 +8,7 @@ on:
 
 jobs:
   quality-check:
-    name: Lint, Typecheck, Tests & Build (Live PG + GiST)
+    name: Lint, Typecheck, Tests & Build
     runs-on: ubuntu-latest
 
     services:
@@ -62,7 +62,7 @@ jobs:
       - name: TypeScript Typecheck
         run: pnpm typecheck
 
-      - name: Run Test Suite (Concurrency, Exclusion Constraints, Auth, Cron Reset)
+      - name: Run Test Suite
         run: pnpm test
 
       - name: Production Build

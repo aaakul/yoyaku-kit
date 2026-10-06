@@ -9,6 +9,8 @@ export const metadata: Metadata = {
   description: "店舗お知らせの投稿・編集・公開管理",
 };
 
+export const instant = false;
+
 export default async function DashboardNewsPage() {
   const user = await getUser();
   if (!user || !canViewManagerPages(user.role)) {

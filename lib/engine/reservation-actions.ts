@@ -77,6 +77,7 @@ export async function createReservationAction(rawInput: unknown): Promise<Create
 
   const {
     restaurantSlug,
+    source,
     date,
     time,
     partySize,
@@ -207,17 +208,28 @@ export async function createReservationAction(rawInput: unknown): Promise<Create
     }
 
     const currentUser = await getUser();
-    if (currentUser?.role === "demo") {
-      return {
-        success: false,
-        code: RESERVATION_ERROR.DEMO_RESTRICTED,
-        message: "デモアカウントのため、この操作は許可されていません。",
-      };
-    }
     const isStaffOrManager = currentUser?.role === "staff" || currentUser?.role === "manager";
+    const isStaffBooking = source === "staff";
+
+    if (isStaffBooking) {
+      if (currentUser?.role === "demo") {
+        return {
+          success: false,
+          code: RESERVATION_ERROR.DEMO_RESTRICTED,
+          message: "デモアカウントのため、この操作は許可されていません。",
+        };
+      }
+      if (!isStaffOrManager) {
+        return {
+          success: false,
+          code: RESERVATION_ERROR.VALIDATION_FAILED,
+          message: "スタッフまたは管理者としてログインしてください。",
+        };
+      }
+    }
 
     const now = new Date();
-    if (!isStaffOrManager) {
+    if (!isStaffBooking) {
       const minAdvanceHours =
         restaurant.minAdvanceHours || restaurantConfig.booking.minAdvanceHours;
       const minAdvanceMs = minAdvanceHours * 60 * 60 * 1000;
@@ -337,9 +349,9 @@ export async function createReservationAction(rawInput: unknown): Promise<Create
         action: "created",
         previousStatus: null,
         newStatus: "confirmed",
-        operatorId: currentUser?.id ?? null,
-        operatorRole: currentUser?.role ?? "customer",
-        note: currentUser ? "スタッフによる予約登録" : "お客様によるウェブ予約",
+        operatorId: isStaffBooking ? (currentUser?.id ?? null) : null,
+        operatorRole: isStaffBooking ? (currentUser?.role ?? "staff") : "customer",
+        note: isStaffBooking ? "スタッフによる予約登録" : "お客様によるウェブ予約",
       });
 
       const selectedTable = tables.find((t) => t.id === selectedTableId);

@@ -37,6 +37,7 @@ export function parseDateString(dateStr: string): Date | null {
 export function createReservationSchema(maxAdvanceDays = defaultMaxAdvanceDays) {
   return z.object({
     restaurantSlug: z.string().default(DEFAULT_RESTAURANT_SLUG),
+    source: z.enum(["web", "staff"]).default("web"),
     date: z
       .string()
       .min(1, "ご来店日を選択してください")

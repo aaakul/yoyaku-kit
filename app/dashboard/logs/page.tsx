@@ -9,6 +9,8 @@ export const metadata: Metadata = {
   description: "予約変更およびシステム操作の操作ログ",
 };
 
+export const instant = false;
+
 export default async function AuditLogsPage() {
   const currentUser = await getUser();
   if (!currentUser) {
