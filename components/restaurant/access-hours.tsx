@@ -1,5 +1,6 @@
 import { restaurantConfig } from "@/config/restaurant";
 import type { Restaurant } from "@/lib/db/schema";
+import { MapFacade } from "./map-facade";
 
 export interface AccessHoursProps {
   restaurant?: Partial<Restaurant> | null;
@@ -105,17 +106,7 @@ export function AccessHours({ restaurant }: AccessHoursProps = {}) {
               </div>
             </div>
 
-            <div className="relative min-h-[220px] flex-1 overflow-hidden rounded-lg bg-stone-100 dark:bg-stone-900">
-              <iframe
-                title="周辺地図"
-                src={googleMapsEmbedUrl}
-                width="100%"
-                height="100%"
-                className="absolute inset-0 h-full w-full border-0"
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-              />
-            </div>
+            <MapFacade embedUrl={googleMapsEmbedUrl} />
           </div>
         </div>
       </div>

@@ -1,5 +1,7 @@
 # yoyaku-kit
 
+[日本語](./README.ja-JP.md)
+
 A lightweight Japanese restaurant reservation and table management system built with Next.js 16 and PostgreSQL.
 
 Designed specifically for small, single-location restaurants in Japan, it provides localized usage experience.

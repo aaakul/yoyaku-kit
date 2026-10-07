@@ -36,7 +36,8 @@ export function About() {
                     src={mainFeature.image}
                     alt={mainFeature.title}
                     fill
-                    sizes="(max-width: 1024px) 100vw, 1024px"
+                    quality={70}
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 90vw, 976px"
                     className="object-cover"
                   />
                 )}
@@ -66,7 +67,8 @@ export function About() {
                       src={feature.image}
                       alt={feature.title}
                       fill
-                      sizes="(max-width: 768px) 100vw, 50vw"
+                      quality={70}
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 480px"
                       className="object-cover"
                     />
                   </div>
