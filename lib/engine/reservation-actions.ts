@@ -318,7 +318,7 @@ export async function createReservationAction(rawInput: unknown): Promise<Create
               cancellationTokenHash,
               idempotencyKey: idempotencyKey || null,
               customerName,
-              customerNameKana,
+              customerNameKana: customerNameKana?.trim() || customerName,
               customerPhone,
               customerEmail,
               note,
@@ -380,6 +380,7 @@ export async function createReservationAction(rawInput: unknown): Promise<Create
       endAt,
       tableName: result.tableName,
       note,
+      locale: validated.data.locale,
     }).catch((err) => {
       console.error("[Email] Failed to send reservation confirmation:", err);
     });
@@ -443,6 +444,7 @@ export async function createReservationAction(rawInput: unknown): Promise<Create
 
 export async function cancelReservationAction(
   token: string,
+  locale?: string,
 ): Promise<ActionResult<ReservationErrorCode>> {
   try {
     if (!token || token.length < 10) {
@@ -581,6 +583,7 @@ export async function cancelReservationAction(
       partySize: found.partySize,
       startAt: found.startAt,
       endAt: found.endAt,
+      locale,
     }).catch((err) => {
       console.error("[Email] Failed to send cancellation email:", err);
     });

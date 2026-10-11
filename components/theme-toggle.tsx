@@ -6,13 +6,20 @@ import { flushSync } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "./theme-provider";
 
-export type ThemeToggleProps = React.ComponentProps<typeof Button>;
+export type ThemeToggleProps = React.ComponentProps<typeof Button> & {
+  lightLabel?: string;
+  darkLabel?: string;
+  ariaLabel?: string;
+};
 
 export function ThemeToggle({
   className,
   variant = "ghost",
   size = "icon",
   onClick,
+  lightLabel,
+  darkLabel,
+  ariaLabel,
   ...props
 }: ThemeToggleProps) {
   const { resolvedTheme, setTheme } = useTheme();
@@ -69,8 +76,17 @@ export function ThemeToggle({
       size={size}
       onClick={handleToggle}
       className={className}
-      aria-label={mounted && isDark ? "ライトモードに切り替え" : "ダークモードに切り替え"}
-      title={mounted && isDark ? "ライトモード" : "ダークモード"}
+      aria-label={
+        ariaLabel ??
+        (mounted && isDark
+          ? lightLabel
+            ? `${lightLabel}`
+            : "ライトモードに切り替え"
+          : darkLabel
+            ? `${darkLabel}`
+            : "ダークモードに切り替え")
+      }
+      title={mounted && isDark ? (lightLabel ?? "ライトモード") : (darkLabel ?? "ダークモード")}
       disabled={!mounted}
       {...props}
     >

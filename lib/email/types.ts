@@ -33,4 +33,5 @@ export interface ReservationEmailData {
   endAt: Date;
   tableName?: string;
   note?: string | null;
+  locale?: string;
 }

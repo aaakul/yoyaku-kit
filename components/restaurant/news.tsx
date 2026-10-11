@@ -1,5 +1,6 @@
-import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { restaurantConfig } from "@/config/restaurant";
+import { Link } from "@/i18n/navigation";
 
 export interface NewsArticleItem {
   id: string;
@@ -14,6 +15,8 @@ export interface NewsProps {
 }
 
 export function News({ newsList }: NewsProps) {
+  const t = useTranslations("home");
+
   const displayNews: NewsArticleItem[] =
     newsList && newsList.length > 0
       ? newsList
@@ -33,7 +36,7 @@ export function News({ newsList }: NewsProps) {
       <div className="mx-auto max-w-4xl px-4 sm:px-6">
         <div className="mx-auto max-w-2xl text-center animate-fade-up">
           <h2 className="mt-2 font-serif text-2xl font-bold tracking-widest text-stone-900 dark:text-stone-100 sm:text-3xl">
-            お知らせ
+            {t("news_title")}
           </h2>
           <div className="mx-auto my-3 h-px w-10 bg-primary/60" />
         </div>
@@ -68,6 +71,8 @@ export function News({ newsList }: NewsProps) {
 }
 
 export function NewsSkeleton() {
+  const t = useTranslations("home");
+
   return (
     <section
       id="news"
@@ -76,7 +81,7 @@ export function NewsSkeleton() {
       <div className="mx-auto max-w-4xl px-4 sm:px-6">
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="mt-2 font-serif text-2xl font-bold tracking-widest text-stone-900 dark:text-stone-100 sm:text-3xl">
-            お知らせ
+            {t("news_title")}
           </h2>
           <div className="mx-auto my-3 h-px w-10 bg-primary/60" />
         </div>

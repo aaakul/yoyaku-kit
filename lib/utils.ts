@@ -11,6 +11,13 @@ export function addDays(dateStr: string, days: number): string {
   return date.toISOString().split("T")[0];
 }
 
+export function formatCalendarDate(date: Date): string {
+  return date
+    .toISOString()
+    .replace(/[-:]/g, "")
+    .replace(/\.\d{3}/, "");
+}
+
 export function getTodayJst(): string {
   const nowJst = new Date(Date.now() + 9 * 3600 * 1000);
   return nowJst.toISOString().split("T")[0];
@@ -87,8 +94,6 @@ export const RESERVATION_STATUS_CONFIG: Record<ReservationStatus, ReservationSta
   },
 };
 
-export const JAPANESE_WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"] as const;
-
 export function getDayOfWeek(dateStr: string, timezone = "Asia/Tokyo"): number {
   const [year, month, day] = dateStr.split("-").map(Number);
   const approxUtc = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
@@ -164,13 +169,24 @@ export function mapDbReservation(d: {
   };
 }
 
-export function formatJstDateTime(startAt: Date, endAt: Date) {
+export function formatJstDateTime(startAt: Date, endAt: Date, locale = "ja") {
   const startJST = new Date(startAt.getTime() + 9 * 3600 * 1000);
   const endJST = new Date(endAt.getTime() + 9 * 3600 * 1000);
 
-  const dayName = JAPANESE_WEEKDAYS[startJST.getUTCDay()];
+  // Format date in JST by constructing a UTC date that has the same calendar values
+  // as the JST date, then formatting it in UTC to avoid double timezone conversion.
+  const dateForFormat = new Date(
+    Date.UTC(startJST.getUTCFullYear(), startJST.getUTCMonth(), startJST.getUTCDate()),
+  );
 
-  const dateDisplay = `${startJST.getUTCFullYear()}年${startJST.getUTCMonth() + 1}月${startJST.getUTCDate()}日（${dayName}）`;
+  const dateDisplay = new Intl.DateTimeFormat(locale, {
+    timeZone: "UTC",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    weekday: "short",
+  }).format(dateForFormat);
+
   const timeDisplay = `${String(startJST.getUTCHours()).padStart(2, "0")}:${String(startJST.getUTCMinutes()).padStart(2, "0")}～${String(endJST.getUTCHours()).padStart(2, "0")}:${String(endJST.getUTCMinutes()).padStart(2, "0")}`;
 
   return { dateDisplay, timeDisplay };

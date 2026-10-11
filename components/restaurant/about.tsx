@@ -1,9 +1,11 @@
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 import { restaurantConfig } from "@/config/restaurant";
 
 export function About() {
+  const t = useTranslations("home");
   const { about } = restaurantConfig;
-  const [mainFeature, ...subFeatures] = about.features;
+  const [mainFeature, subFeature1, subFeature2] = about.features;
 
   return (
     <section
@@ -13,17 +15,15 @@ export function About() {
       <div className="mx-auto max-w-5xl px-4 sm:px-6">
         <div className="mx-auto max-w-2xl text-center animate-fade-up">
           <h2 className="font-serif text-2xl font-bold tracking-widest text-stone-900 dark:text-stone-100 sm:text-3xl">
-            {about.heading}
+            {t("about_heading")}
           </h2>
           <div className="mx-auto my-3 h-px w-10 bg-primary/60" />
           <p className="font-serif text-base tracking-wide text-stone-700 dark:text-stone-300">
-            {about.subheading}
+            {t("about_subheading")}
           </p>
 
           <div className="mt-6 space-y-2 text-center font-serif text-sm leading-relaxed text-stone-600 dark:text-stone-400">
-            {about.description.map((paragraph) => (
-              <p key={paragraph}>{paragraph}</p>
-            ))}
+            <p>{t("about_desc")}</p>
           </div>
         </div>
 
@@ -34,7 +34,7 @@ export function About() {
                 {mainFeature.image && (
                   <Image
                     src={mainFeature.image}
-                    alt={mainFeature.title}
+                    alt={t("feature1_title")}
                     fill
                     quality={70}
                     sizes="(max-width: 640px) 100vw, (max-width: 1024px) 90vw, 976px"
@@ -44,10 +44,10 @@ export function About() {
                 <div className="absolute inset-0 bg-gradient-to-t from-stone-950/75 via-stone-950/25 to-transparent" />
                 <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-8 text-white">
                   <h3 className="font-serif text-xl font-bold tracking-wider text-stone-100 sm:text-2xl">
-                    {mainFeature.title}
+                    {t("feature1_title")}
                   </h3>
                   <p className="mt-2 max-w-xl font-serif text-xs leading-relaxed text-stone-200 sm:text-sm">
-                    {mainFeature.description}
+                    {t("feature1_desc")}
                   </p>
                 </div>
               </div>
@@ -55,17 +55,13 @@ export function About() {
           )}
 
           <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 md:gap-14">
-            {subFeatures.map((feature, idx) => (
-              <div
-                key={feature.title}
-                className="group flex flex-col animate-fade-up"
-                style={{ animationDelay: `${(idx + 2) * 150}ms` }}
-              >
-                {feature.image && (
+            {subFeature1 && (
+              <div className="group flex flex-col animate-fade-up [animation-delay:300ms]">
+                {subFeature1.image && (
                   <div className="relative aspect-[16/10] w-full overflow-hidden rounded-md bg-stone-200/50 dark:bg-stone-900/50">
                     <Image
-                      src={feature.image}
-                      alt={feature.title}
+                      src={subFeature1.image}
+                      alt={t("feature2_title")}
                       fill
                       quality={70}
                       sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 480px"
@@ -75,14 +71,38 @@ export function About() {
                 )}
                 <div className="pt-5">
                   <h3 className="font-serif text-lg font-bold tracking-wider text-stone-900 dark:text-stone-100">
-                    {feature.title}
+                    {t("feature2_title")}
                   </h3>
                   <p className="mt-2 font-serif text-sm leading-relaxed text-stone-600 dark:text-stone-400">
-                    {feature.description}
+                    {t("feature2_desc")}
                   </p>
                 </div>
               </div>
-            ))}
+            )}
+            {subFeature2 && (
+              <div className="group flex flex-col animate-fade-up [animation-delay:450ms]">
+                {subFeature2.image && (
+                  <div className="relative aspect-[16/10] w-full overflow-hidden rounded-md bg-stone-200/50 dark:bg-stone-900/50">
+                    <Image
+                      src={subFeature2.image}
+                      alt={t("feature3_title")}
+                      fill
+                      quality={70}
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 480px"
+                      className="object-cover"
+                    />
+                  </div>
+                )}
+                <div className="pt-5">
+                  <h3 className="font-serif text-lg font-bold tracking-wider text-stone-900 dark:text-stone-100">
+                    {t("feature3_title")}
+                  </h3>
+                  <p className="mt-2 font-serif text-sm leading-relaxed text-stone-600 dark:text-stone-400">
+                    {t("feature3_desc")}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

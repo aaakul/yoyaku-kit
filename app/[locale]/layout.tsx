@@ -1,8 +1,12 @@
-import "./globals.css";
+import "@/app/globals.css";
 import type { Metadata, Viewport } from "next";
-import { Manrope } from "next/font/google";
+import { notFound } from "next/navigation";
+import { NextIntlClientProvider } from "next-intl";
+import { getMessages, setRequestLocale } from "next-intl/server";
+import { manrope } from "@/app/fonts";
 import { ThemeProvider } from "@/components/theme-provider";
 import { restaurantConfig } from "@/config/restaurant";
+import { type Locale, routing } from "@/i18n/routing";
 
 export const metadata: Metadata = {
   title: {
@@ -21,14 +25,33 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-const manrope = Manrope({ subsets: ["latin"], variable: "--font-sans" });
+export const instant = false;
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export function generateStaticParams() {
+  return routing.locales.map((locale) => ({ locale }));
+}
+
+export default async function LocaleLayout({
+  children,
+  params,
+}: {
+  children: React.ReactNode;
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+
+  if (!routing.locales.includes(locale as Locale)) {
+    notFound();
+  }
+
+  setRequestLocale(locale);
+  const messages = await getMessages();
+
   return (
     <html
       suppressHydrationWarning
       data-scroll-behavior="smooth"
-      lang="ja"
+      lang={locale}
       className={`scroll-smooth ${manrope.variable} ${manrope.className}`}
     >
       <body className="min-h-dvh bg-background text-foreground antialiased">
@@ -38,7 +61,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           enableSystem
           disableTransitionOnChange
         >
-          {children}
+          <NextIntlClientProvider locale={locale} messages={messages}>
+            {children}
+          </NextIntlClientProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -1,14 +1,10 @@
 import { notFound } from "next/navigation";
 import { type NextRequest, NextResponse } from "next/server";
+import { getTranslations } from "next-intl/server";
 import { restaurantConfig } from "@/config/restaurant";
+import { type Locale, routing } from "@/i18n/routing";
 import { getReservationByToken } from "@/lib/db/queries";
-
-function formatICSDate(date: Date): string {
-  return date
-    .toISOString()
-    .replace(/[-:]/g, "")
-    .replace(/\.\d{3}/, "");
-}
+import { formatCalendarDate } from "@/lib/utils";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -24,25 +20,32 @@ export async function GET(request: NextRequest) {
   }
 
   const { reservation, restaurant } = data;
+  const rawLocale = searchParams.get("locale");
+  const locale: Locale =
+    rawLocale && routing.locales.includes(rawLocale as Locale)
+      ? (rawLocale as Locale)
+      : routing.defaultLocale;
 
-  const restaurantName = restaurant.name || restaurantConfig.name;
-  const address = restaurant.address || restaurantConfig.contact.address;
+  const t = await getTranslations({ locale, namespace: "reservations" });
+  const tCommon = await getTranslations({ locale, namespace: "common" });
+
+  const restaurantName = restaurant.name || tCommon("restaurant_name");
+  const address = restaurant.address || restaurantConfig.contact.address || tCommon("address");
   const phone = restaurant.phone || restaurantConfig.contact.phone;
 
-  const dtStart = formatICSDate(reservation.startAt);
-  const dtEnd = formatICSDate(reservation.endAt);
-  const dtStamp = formatICSDate(new Date());
+  const dtStart = formatCalendarDate(reservation.startAt);
+  const dtEnd = formatCalendarDate(reservation.endAt);
+  const dtStamp = formatCalendarDate(new Date());
 
   const reservationCode = reservation.reservationNumber || reservation.id.slice(0, 8);
-  const summary = `${restaurantName} ご予約`;
+  const summary = t("gcal_title", { restaurant: restaurantName });
   const description = [
-    `【ご予約内容】`,
-    `予約番号：${reservationCode}`,
-    `店舗名：${restaurantName}`,
-    `予約者名：${reservation.customerName} 様`,
-    `人数：${reservation.partySize}名`,
-    `電話番号：${phone}`,
-    reservation.note ? `ご要望：${reservation.note}` : "",
+    `${t("reservation_number")}: ${reservationCode}`,
+    t("gcal_store", { name: restaurantName }),
+    t("gcal_guest", { name: reservation.customerName }),
+    t("gcal_party", { count: reservation.partySize }),
+    t("gcal_phone", { phone }),
+    reservation.note ? t("gcal_note", { note: reservation.note }) : "",
   ]
     .filter(Boolean)
     .join("\\n");
@@ -50,7 +53,7 @@ export async function GET(request: NextRequest) {
   const icsLines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//yoyaku-kit//Reservation Calendar//JA",
+    `PRODID:-//yoyaku-kit//Reservation Calendar//${locale.toUpperCase()}`,
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     "BEGIN:VEVENT",

@@ -1,22 +1,24 @@
 import type { Metadata } from "next";
 import { cacheLife, cacheTag } from "next/cache";
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Suspense } from "react";
 import ReactMarkdown from "react-markdown";
 import { Footer } from "@/components/restaurant/footer";
 import { Header } from "@/components/restaurant/header";
+import { getPathname, Link } from "@/i18n/navigation";
+import { type Locale, routing } from "@/i18n/routing";
 import { getNewsItem, getNewsList, getRestaurant } from "@/lib/db/queries";
 
 interface NewsDetailPageProps {
-  params: Promise<{ id: string }>;
+  params: Promise<{ locale: string; id: string }>;
 }
 
 export async function generateStaticParams() {
   const restaurant = await getRestaurant();
   if (!restaurant) return [];
   const newsList = await getNewsList(restaurant.id, true);
-  return newsList.map((item) => ({ id: item.id }));
+  return routing.locales.flatMap((locale) => newsList.map((item) => ({ locale, id: item.id })));
 }
 
 async function getCachedNewsItem(id: string) {
@@ -27,12 +29,13 @@ async function getCachedNewsItem(id: string) {
 }
 
 export async function generateMetadata({ params }: NewsDetailPageProps): Promise<Metadata> {
-  const { id } = await params;
+  const { locale, id } = await params;
   const item = await getCachedNewsItem(id);
 
   if (!item || !item.isPublished) {
+    const t = await getTranslations({ locale, namespace: "news" });
     return {
-      title: "お知らせ",
+      title: t("meta_title"),
       robots: {
         index: false,
         follow: false,
@@ -43,6 +46,12 @@ export async function generateMetadata({ params }: NewsDetailPageProps): Promise
   return {
     title: item.title,
     description: item.content.slice(0, 120),
+    alternates: {
+      canonical: getPathname({ href: `/news/${id}`, locale: locale as Locale }),
+      languages: Object.fromEntries(
+        routing.locales.map((loc) => [loc, getPathname({ href: `/news/${id}`, locale: loc })]),
+      ),
+    },
   };
 }
 
@@ -64,8 +73,7 @@ function NewsDetailSkeleton() {
   );
 }
 
-async function NewsDetailContent({ params }: NewsDetailPageProps) {
-  const { id } = await params;
+async function NewsDetailContent({ id }: { id: string }) {
   const item = await getCachedNewsItem(id);
 
   if (!item || !item.isPublished) {
@@ -117,7 +125,13 @@ async function NewsDetailContent({ params }: NewsDetailPageProps) {
   );
 }
 
-export default function NewsDetailPage({ params }: NewsDetailPageProps) {
+export const instant = false;
+
+export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
+  const { locale, id } = await params;
+  setRequestLocale(locale);
+  const t = await getTranslations("news");
+
   return (
     <div className="flex min-h-screen flex-col washi-bg text-foreground selection:bg-primary selection:text-primary-foreground">
       <Header />
@@ -128,12 +142,12 @@ export default function NewsDetailPage({ params }: NewsDetailPageProps) {
               href="/#news"
               className="text-xs text-muted-foreground hover:text-primary transition-colors font-medium inline-flex items-center gap-1"
             >
-              ← お知らせ一覧に戻る
+              {t("back_to_list")}
             </Link>
           </div>
 
           <Suspense fallback={<NewsDetailSkeleton />}>
-            <NewsDetailContent params={params} />
+            <NewsDetailContent id={id} />
           </Suspense>
         </div>
       </main>

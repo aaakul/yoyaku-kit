@@ -11,6 +11,7 @@ import { newsItemSchema } from "@/lib/validations/cms";
 import {
   createReservationSchema,
   getTokyoTodayStart,
+  RESERVATION_VALIDATION_MESSAGES,
   reservationSchema,
 } from "@/lib/validations/reservation";
 
@@ -50,7 +51,9 @@ describe("Reservation Form Validation (Zod SSOT & Two-Tier Architecture)", () =>
       });
       expect(resEmpty.success).toBe(false);
       if (!resEmpty.success) {
-        expect(resEmpty.error.issues[0]?.message).toBe("お名前を入力してください");
+        expect(resEmpty.error.issues[0]?.message).toBe(
+          RESERVATION_VALIDATION_MESSAGES.CUSTOMER_NAME_REQUIRED,
+        );
       }
 
       const resWhitespace = reservationSchema.safeParse({
@@ -59,7 +62,9 @@ describe("Reservation Form Validation (Zod SSOT & Two-Tier Architecture)", () =>
       });
       expect(resWhitespace.success).toBe(false);
       if (!resWhitespace.success) {
-        expect(resWhitespace.error.issues[0]?.message).toBe("お名前を入力してください");
+        expect(resWhitespace.error.issues[0]?.message).toBe(
+          RESERVATION_VALIDATION_MESSAGES.CUSTOMER_NAME_REQUIRED,
+        );
       }
     });
 
@@ -72,7 +77,9 @@ describe("Reservation Form Validation (Zod SSOT & Two-Tier Architecture)", () =>
       });
       expect(res.success).toBe(false);
       if (!res.success) {
-        expect(res.error.issues[0]?.message).toBe("お名前は50文字以内で入力してください");
+        expect(res.error.issues[0]?.message).toBe(
+          RESERVATION_VALIDATION_MESSAGES.CUSTOMER_NAME_MAX,
+        );
       }
     });
   });
@@ -105,7 +112,7 @@ describe("Reservation Form Validation (Zod SSOT & Two-Tier Architecture)", () =>
       expect(resHiragana.success).toBe(false);
       if (!resHiragana.success) {
         expect(resHiragana.error.issues[0]?.message).toBe(
-          "フリガナは全角カタカナで入力してください",
+          RESERVATION_VALIDATION_MESSAGES.CUSTOMER_NAME_KANA_INVALID,
         );
       }
 
@@ -116,13 +123,13 @@ describe("Reservation Form Validation (Zod SSOT & Two-Tier Architecture)", () =>
       expect(resKanji.success).toBe(false);
     });
 
-    it("rejects empty or excessively long katakana", () => {
+    it("accepts empty katakana (optional for international guests) and rejects excessively long katakana", () => {
       const data = getValidBaseData();
       const resEmpty = reservationSchema.safeParse({
         ...data,
         customerNameKana: "",
       });
-      expect(resEmpty.success).toBe(false);
+      expect(resEmpty.success).toBe(true);
 
       const resLong = reservationSchema.safeParse({
         ...data,
@@ -169,7 +176,7 @@ describe("Reservation Form Validation (Zod SSOT & Two-Tier Architecture)", () =>
       expect(resShort.success).toBe(false);
       if (!resShort.success) {
         expect(resShort.error.issues[0]?.message).toBe(
-          "有効な電話番号を入力してください（例：090-1234-5678）",
+          RESERVATION_VALIDATION_MESSAGES.CUSTOMER_PHONE_INVALID,
         );
       }
 
@@ -201,7 +208,9 @@ describe("Reservation Form Validation (Zod SSOT & Two-Tier Architecture)", () =>
       });
       expect(res1.success).toBe(false);
       if (!res1.success) {
-        expect(res1.error.issues[0]?.message).toBe("有効なメールアドレスを入力してください");
+        expect(res1.error.issues[0]?.message).toBe(
+          RESERVATION_VALIDATION_MESSAGES.CUSTOMER_EMAIL_INVALID,
+        );
       }
 
       const res2 = reservationSchema.safeParse({
@@ -223,7 +232,7 @@ describe("Reservation Form Validation (Zod SSOT & Two-Tier Architecture)", () =>
       const res = reservationSchema.safeParse({ ...data, date: yesterdayStr });
       expect(res.success).toBe(false);
       if (!res.success) {
-        expect(res.error.issues[0]?.message).toBe("過去の日付は指定できません");
+        expect(res.error.issues[0]?.message).toBe(RESERVATION_VALIDATION_MESSAGES.DATE_PAST);
       }
     });
 
@@ -254,7 +263,7 @@ describe("Reservation Form Validation (Zod SSOT & Two-Tier Architecture)", () =>
       const res = customSchema.safeParse({ ...data, date: day31Str });
       expect(res.success).toBe(false);
       if (!res.success) {
-        expect(res.error.issues[0]?.message).toBe("30日以上先のご予約はお電話にて承ります");
+        expect(res.error.issues[0]?.message).toBe(RESERVATION_VALIDATION_MESSAGES.DATE_MAX_ADVANCE);
       }
     });
   });
@@ -278,15 +287,19 @@ describe("Reservation Form Validation (Zod SSOT & Two-Tier Architecture)", () =>
         expect(result.code).toBe(RESERVATION_ERROR.VALIDATION_FAILED);
         expect(result.message).toBeDefined();
         expect(result.fieldErrors).toBeDefined();
-        expect(result.fieldErrors?.customerName).toBe("お名前を入力してください");
+        expect(result.fieldErrors?.customerName).toBe(
+          RESERVATION_VALIDATION_MESSAGES.CUSTOMER_NAME_REQUIRED,
+        );
         expect(result.fieldErrors?.customerNameKana).toBe(
-          "フリガナは全角カタカナで入力してください",
+          RESERVATION_VALIDATION_MESSAGES.CUSTOMER_NAME_KANA_INVALID,
         );
         expect(result.fieldErrors?.customerPhone).toBe(
-          "有効な電話番号を入力してください（例：090-1234-5678）",
+          RESERVATION_VALIDATION_MESSAGES.CUSTOMER_PHONE_INVALID,
         );
-        expect(result.fieldErrors?.customerEmail).toBe("有効なメールアドレスを入力してください");
-        expect(result.fieldErrors?.date).toBe("過去の日付は指定できません");
+        expect(result.fieldErrors?.customerEmail).toBe(
+          RESERVATION_VALIDATION_MESSAGES.CUSTOMER_EMAIL_INVALID,
+        );
+        expect(result.fieldErrors?.date).toBe(RESERVATION_VALIDATION_MESSAGES.DATE_PAST);
       }
     });
   });

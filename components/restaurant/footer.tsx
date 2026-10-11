@@ -1,5 +1,6 @@
-import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { restaurantConfig } from "@/config/restaurant";
+import { Link } from "@/i18n/navigation";
 
 function FacebookIcon({ className }: { className?: string }) {
   return (
@@ -18,6 +19,7 @@ function InstagramIcon({ className }: { className?: string }) {
 }
 
 export function Footer() {
+  const t = useTranslations("common");
   const social = restaurantConfig.contact.social;
 
   return (
@@ -26,11 +28,9 @@ export function Footer() {
         <div className="flex flex-col items-center justify-between gap-6 md:flex-row md:items-start">
           <div className="text-center md:text-left">
             <span className="font-serif text-xl font-bold tracking-widest text-stone-100">
-              {restaurantConfig.name}
+              {t("restaurant_name")}
             </span>
-            <p className="mt-3 text-xs text-stone-400">
-              {restaurantConfig.contact.postalCode} {restaurantConfig.contact.address}
-            </p>
+            <p className="mt-3 text-xs text-stone-400">{t("address")}</p>
             <p className="mt-1 text-xs text-stone-400">
               TEL: {restaurantConfig.contact.phoneDisplay}
             </p>
@@ -39,20 +39,20 @@ export function Footer() {
           <div className="flex flex-col items-center gap-4 text-xs md:items-end">
             <div className="flex flex-wrap justify-center gap-6 text-stone-300">
               <Link href="#about" className="transition hover:text-white">
-                当店について
+                {t("nav_about")}
               </Link>
               <Link href="#menu" className="transition hover:text-white">
-                お品書き
+                {t("nav_menu")}
               </Link>
               <Link href="#access" className="transition hover:text-white">
-                アクセス・営業時間
+                {t("nav_access_footer")}
               </Link>
               <Link href="#news" className="transition hover:text-white">
-                お知らせ
+                {t("nav_news")}
               </Link>
-              <Link href="/sign-in" className="text-stone-400 transition hover:text-stone-200">
-                店舗管理
-              </Link>
+              <a href="/sign-in" className="text-stone-400 transition hover:text-stone-200">
+                {t("manage")}
+              </a>
             </div>
 
             {social && (
@@ -83,13 +83,13 @@ export function Footer() {
             )}
 
             <p className="text-[11px] text-stone-400">
-              © {restaurantConfig.name}. All rights reserved.
+              © {t("restaurant_name")}. {t("all_rights_reserved")}
             </p>
           </div>
         </div>
 
         <div className="mt-8 border-t border-stone-850 pt-6 text-center text-xs">
-          Made with{" "}
+          {t("made_with")}{" "}
           <a
             href="https://github.com/aaakul/yoyaku-kit"
             target="_blank"

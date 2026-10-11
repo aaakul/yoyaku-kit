@@ -140,6 +140,38 @@ describe("Email Module", () => {
         "&lt;script&gt;alert(&#039;xss&#039;)&lt;/script&gt; &amp; Bob様",
       );
     });
+
+    it("renders localized reservation confirmation and cancellation email for en and zh-Hans", () => {
+      const enData = {
+        ...sampleData,
+        reservationNumber: "EN1234",
+        locale: "en",
+      };
+      const enConfirmation = renderReservationConfirmationEmail(enData);
+      expect(enConfirmation.subject).toContain("[Booking Confirmed]");
+      expect(enConfirmation.subject).toContain("EN1234");
+      expect(enConfirmation.text).toContain("Dear 山田 太郎,");
+      expect(enConfirmation.text).toContain("Guests: 4");
+      expect(enConfirmation.text).toContain("/en/reservations/res-test-123456?token=tok_");
+
+      const enCancellation = renderReservationCancellationEmail(enData);
+      expect(enCancellation.subject).toContain("[Booking Cancelled]");
+      expect(enCancellation.text).toContain("Your reservation has been cancelled.");
+
+      const zhData = {
+        ...sampleData,
+        reservationNumber: "ZH1234",
+        locale: "zh-Hans",
+      };
+      const zhConfirmation = renderReservationConfirmationEmail(zhData);
+      expect(zhConfirmation.subject).toContain("[预订已确认]");
+      expect(zhConfirmation.text).toContain("山田 太郎 贵客：");
+      expect(zhConfirmation.text).toContain("用餐人数：4人");
+
+      const zhCancellation = renderReservationCancellationEmail(zhData);
+      expect(zhCancellation.subject).toContain("[预订已取消]");
+      expect(zhCancellation.text).toContain("您的预订已成功取消。");
+    });
   });
 
   describe("Domain Email Service", () => {

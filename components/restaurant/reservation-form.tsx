@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertCircle, Loader2 } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
@@ -10,12 +10,13 @@ import { FieldError } from "@/components/ui/field-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DEFAULT_RESTAURANT_SLUG, restaurantConfig } from "@/config/restaurant";
+import { usePathname, useRouter } from "@/i18n/navigation";
 import {
   createReservationAction,
   fetchAvailableSlotsAction,
 } from "@/lib/engine/reservation-actions";
 import type { TimeSlot } from "@/lib/engine/slots";
-import { getDayOfWeek, JAPANESE_WEEKDAYS } from "@/lib/utils";
+import { formatJstDateTime, getDayOfWeek } from "@/lib/utils";
 import {
   getTokyoTodayStart,
   type ReservationFormValues,
@@ -25,11 +26,16 @@ import {
 const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 export function ReservationForm() {
+  const t = useTranslations("reserve");
+  const tHome = useTranslations("home");
+  const locale = useLocale();
   const router = useRouter();
   const pathname = usePathname();
 
   const { booking, businessHours } = restaurantConfig;
   const maxAdvanceDays = booking.maxAdvanceDays;
+  const minParty = booking.minPartySize;
+  const maxParty = booking.maxPartySize;
   const diningDurationMinutes = booking.defaultDurationMinutes;
   const cancellationCutoffHours = booking.cancellationCutoffHours;
   const partySizes = booking.partySizes;
@@ -95,15 +101,20 @@ export function ReservationForm() {
     const currentObj = new Date(Date.UTC(y, m - 1, d, 3, 0, 0));
     const nextObj = new Date(Date.UTC(y, m - 1, d + 1, 3, 0, 0));
 
-    const curLabel = `${currentObj.getUTCMonth() + 1}月${currentObj.getUTCDate()}日（${JAPANESE_WEEKDAYS[currentObj.getUTCDay()]}）`;
-    const nextLabel = `${nextObj.getUTCMonth() + 1}月${nextObj.getUTCDate()}日（${JAPANESE_WEEKDAYS[nextObj.getUTCDay()]}）`;
+    const { dateDisplay: curLabel } = formatJstDateTime(currentObj, currentObj, locale);
+    const { dateDisplay: nextLabel } = formatJstDateTime(nextObj, nextObj, locale);
     const displayTime = time.replace(/^00:/, "0:");
 
-    return `※ 翌日 ${nextLabel} ${displayTime} のご来店となります（${curLabel}深夜）`;
+    return t("overnight_notice", {
+      nextDate: nextLabel,
+      time: displayTime,
+      currentDate: curLabel,
+    });
   })();
 
   useEffect(() => {
     let active = true;
+
     if (!currentDate || !partySize || isClosedDay) {
       setSlotAvailability(null);
       return;
@@ -126,6 +137,19 @@ export function ReservationForm() {
       active = false;
     };
   }, [currentDate, partySize, isClosedDay]);
+
+  const resolveFieldError = (msg?: string | null) => {
+    if (!msg) return null;
+    if (msg.startsWith("validation.")) {
+      const key = msg.slice(11);
+      const count = key === "party_size_max" ? maxParty : minParty;
+      return t(`validation.${key}` as Parameters<typeof t>[0], {
+        days: maxAdvanceDays,
+        count,
+      });
+    }
+    return msg;
+  };
 
   const getSlotStatus = (slotTime: string): "○" | "△" | "×" => {
     if (isClosedDay) return "×";
@@ -186,11 +210,35 @@ export function ReservationForm() {
     try {
       const res = await createReservationAction({
         ...values,
+        locale,
         idempotencyKey,
       });
 
       if (!res.success) {
-        setErrorMessage(res.message);
+        const codeKey = res.code ? res.code.replace(/^RESERVATION_/, "") : null;
+        let errorMsg = res.message;
+        if (codeKey === "FULLY_BOOKED") {
+          errorMsg = t("errors.FULLY_BOOKED");
+        } else if (codeKey === "ADVANCE_NOTICE_REQUIRED") {
+          errorMsg = t("errors.ADVANCE_NOTICE_REQUIRED", {
+            hours: restaurantConfig.booking.minAdvanceHours,
+          });
+        } else if (
+          codeKey === "NO_TABLE_AVAILABLE" ||
+          res.message?.includes("お席がございません")
+        ) {
+          errorMsg = t("errors.NO_TABLE_AVAILABLE");
+        } else if (codeKey === "CLOSED_DAY") {
+          errorMsg = t("closed_day_notice");
+        } else if (codeKey === "SERVER_ERROR") {
+          errorMsg = t("errors.SERVER_ERROR");
+        } else if (res.message) {
+          errorMsg = resolveFieldError(res.message) || res.message;
+        } else {
+          errorMsg = t("error_unexpected");
+        }
+
+        setErrorMessage(errorMsg);
         if (res.fieldErrors) {
           for (const [key, msg] of Object.entries(res.fieldErrors)) {
             if (msg) {
@@ -205,9 +253,8 @@ export function ReservationForm() {
       }
 
       router.push(`/reservations/${res.reservationId}?token=${res.cancellationToken}`);
-    } catch (err: unknown) {
-      const error = err as { message?: string } | undefined;
-      setErrorMessage(error?.message || "予期しないエラーが発生しました。");
+    } catch {
+      setErrorMessage(t("error_unexpected"));
     }
   };
 
@@ -221,7 +268,7 @@ export function ReservationForm() {
           onClick={fillDemoData}
           className="border-stone-300 text-[11px] text-stone-600 hover:bg-stone-100 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
         >
-          テスト用情報を入力
+          {t("test_data_btn")}
         </Button>
       </div>
 
@@ -229,8 +276,7 @@ export function ReservationForm() {
         <div className="mt-6 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-xs text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200">
           <AlertCircle className="mt-0.5 size-4 shrink-0 text-red-600" />
           <div>
-            <p className="font-semibold">ご予約を受け付けられませんでした</p>
-            <p className="mt-0.5">{errorMessage}</p>
+            <p className="font-semibold">{errorMessage}</p>
           </div>
         </div>
       )}
@@ -243,15 +289,14 @@ export function ReservationForm() {
         {/* Step 1: Date, time, and party size */}
         <section className="space-y-4">
           <div>
-            <h2 className="text-sm font-bold text-foreground">1. ご来店日時と人数</h2>
+            <h2 className="text-sm font-bold text-foreground">{t("step1_title")}</h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              ご来店日・時間を選択してください（お席のご利用時間は
-              {diningDurationMinutes}分制です）
+              {t("step1_desc", { minutes: diningDurationMinutes })}
             </p>
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs font-semibold text-foreground">ご利用人数</Label>
+            <Label className="text-xs font-semibold text-foreground">{t("label_party_size")}</Label>
             <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
               {partySizes.map((size) => (
                 <button
@@ -264,17 +309,17 @@ export function ReservationForm() {
                       : "border-border bg-card text-foreground hover:border-primary/50"
                   }`}
                 >
-                  {size}名
+                  {t("label_party_size_unit", { count: size })}
                 </button>
               ))}
             </div>
-            <FieldError error={errors.partySize?.message} showIcon />
+            <FieldError error={resolveFieldError(errors.partySize?.message)} showIcon />
           </div>
 
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <Label htmlFor="date" className="text-xs font-semibold text-foreground">
-                ご来店日
+                {t("label_date")}
               </Label>
               <div className="flex items-center gap-1.5">
                 <button
@@ -286,7 +331,7 @@ export function ReservationForm() {
                       : "border-border bg-card text-muted-foreground hover:border-primary/50"
                   }`}
                 >
-                  今日
+                  {t("quick_date_today")}
                 </button>
                 <button
                   type="button"
@@ -297,7 +342,7 @@ export function ReservationForm() {
                       : "border-border bg-card text-muted-foreground hover:border-primary/50"
                   }`}
                 >
-                  明日
+                  {t("quick_date_tomorrow")}
                 </button>
               </div>
             </div>
@@ -310,20 +355,20 @@ export function ReservationForm() {
               required
               className={`h-10 text-xs ${errors.date ? "border-red-500 focus-visible:ring-red-500" : ""}`}
             />
-            <FieldError error={errors.date?.message} showIcon />
+            <FieldError error={resolveFieldError(errors.date?.message)} showIcon />
           </div>
 
           <div className="space-y-2 pt-1">
             <div className="flex items-center justify-between">
-              <Label className="text-xs font-semibold text-foreground">ご予約時間</Label>
+              <Label className="text-xs font-semibold text-foreground">{t("label_time")}</Label>
               <span className="text-[10px] text-muted-foreground">
-                ○ 空席あり / △ 残りわずか / × 満席
+                ○ {t("slot_available")} / △ {t("slot_few")} / × {t("slot_full")}
               </span>
             </div>
 
             {isClosedDay ? (
               <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
-                ご選択いただいた日程は定休日です。別の日程をお選びください。
+                {t("closed_day_notice")}
               </div>
             ) : (
               periods.map((period, idx) => {
@@ -335,7 +380,7 @@ export function ReservationForm() {
                 return (
                   <div key={period.name} className={idx > 0 ? "pt-2" : ""}>
                     <span className="text-[11px] font-medium text-muted-foreground">
-                      {period.label}
+                      {period.name === "lunch" ? tHome("lunch") : tHome("dinner")}
                     </span>
                     <div className="mt-1.5 grid grid-cols-4 gap-2">
                       {slots.map((slot) => {
@@ -343,7 +388,9 @@ export function ReservationForm() {
                         const isFull = status === "×";
                         const isOvernightSlot = period.name === "dinner" && slot.startsWith("00:");
                         const displaySlot = isOvernightSlot ? slot.replace(/^00:/, "0:") : slot;
-                        const slotLabel = isOvernightSlot ? `翌${displaySlot}` : slot;
+                        const slotLabel = isOvernightSlot
+                          ? t("slot_next_day_prefix", { time: displaySlot })
+                          : slot;
                         return (
                           <button
                             key={slot}
@@ -385,101 +432,101 @@ export function ReservationForm() {
                 {overnightNotice}
               </p>
             )}
-            <FieldError error={errors.time?.message} showIcon />
+            <FieldError error={resolveFieldError(errors.time?.message)} showIcon />
           </div>
         </section>
 
         {/* Step 2: Customer contact details */}
         <section className="space-y-2 pt-6 border-t border-border">
           <div>
-            <h2 className="text-sm font-bold text-foreground">2. 代表者情報</h2>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              予約確認・キャンセル用のURLをメールでお送りします
-            </p>
+            <h2 className="text-sm font-bold text-foreground">{t("step2_title")}</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">{t("step2_desc")}</p>
           </div>
 
           <div className="grid grid-cols-1 gap-x-3.5 sm:grid-cols-2">
             <div className="space-y-1">
               <Label htmlFor="customerName" className="text-xs font-semibold">
-                お名前 <span className="text-red-500">*</span>
+                {t("label_customer_name")} <span className="text-red-500">*</span>
               </Label>
               <Input
                 id="customerName"
-                placeholder="例：佐藤 健一"
+                placeholder={t("name_placeholder")}
                 {...register("customerName")}
                 required
                 className={`h-9 text-xs ${errors.customerName ? "border-red-500 focus-visible:ring-red-500" : ""}`}
               />
-              <FieldError error={errors.customerName?.message} showIcon />
+              <FieldError error={resolveFieldError(errors.customerName?.message)} showIcon />
             </div>
 
             <div className="space-y-1">
-              <Label htmlFor="customerNameKana" className="text-xs font-semibold">
-                フリガナ <span className="text-red-500">*</span>
-              </Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="customerNameKana" className="text-xs font-semibold">
+                  {t("label_customer_name_kana")}
+                </Label>
+                <span className="text-[10px] text-muted-foreground">{t("optional_badge")}</span>
+              </div>
               <Input
                 id="customerNameKana"
-                placeholder="例：サトウ ケンイチ"
+                placeholder={t("kana_placeholder")}
                 {...register("customerNameKana")}
-                required
                 className={`h-9 text-xs ${errors.customerNameKana ? "border-red-500 focus-visible:ring-red-500" : ""}`}
               />
-              <FieldError error={errors.customerNameKana?.message} showIcon />
+              <FieldError error={resolveFieldError(errors.customerNameKana?.message)} showIcon />
             </div>
           </div>
 
           <div className="grid grid-cols-1 gap-x-3.5 sm:grid-cols-2">
             <div className="space-y-1">
               <Label htmlFor="customerPhone" className="text-xs font-semibold">
-                電話番号 <span className="text-red-500">*</span>
+                {t("label_phone")} <span className="text-red-500">*</span>
               </Label>
               <Input
                 id="customerPhone"
                 type="tel"
-                placeholder="例：090-1234-5678"
+                placeholder={t("phone_placeholder")}
                 {...register("customerPhone")}
                 required
                 className={`h-9 text-xs ${errors.customerPhone ? "border-red-500 focus-visible:ring-red-500" : ""}`}
               />
-              <FieldError error={errors.customerPhone?.message} showIcon />
+              <p className="text-[10px] text-muted-foreground">{t("phone_hint")}</p>
+              <FieldError error={resolveFieldError(errors.customerPhone?.message)} showIcon />
             </div>
 
             <div className="space-y-1">
               <Label htmlFor="customerEmail" className="text-xs font-semibold">
-                メールアドレス <span className="text-red-500">*</span>
+                {t("label_email")} <span className="text-red-500">*</span>
               </Label>
               <Input
                 id="customerEmail"
                 type="email"
-                placeholder="例：sato@example.com"
+                placeholder={t("email_placeholder")}
                 {...register("customerEmail")}
                 required
                 className={`h-9 text-xs ${errors.customerEmail ? "border-red-500 focus-visible:ring-red-500" : ""}`}
               />
-              <FieldError error={errors.customerEmail?.message} showIcon />
+              <FieldError error={resolveFieldError(errors.customerEmail?.message)} showIcon />
             </div>
           </div>
 
           <div className="space-y-1">
             <Label htmlFor="note" className="text-xs font-semibold">
-              ご要望・備考（任意）
+              {t("label_note")}
             </Label>
             <textarea
               id="note"
               rows={2}
               maxLength={100}
-              placeholder="100文字以内。"
+              placeholder={t("note_placeholder")}
               {...register("note")}
               className="w-full rounded-md border border-input bg-transparent p-2.5 text-xs text-foreground shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
             />
-            <FieldError error={errors.note?.message} showIcon />
+            <FieldError error={resolveFieldError(errors.note?.message)} showIcon />
           </div>
         </section>
 
         <div className="space-y-3 pt-2">
           <p className="text-center text-[11px] text-muted-foreground">
-            ※ ご予約確定後、お送りするURLから確認・キャンセルができます（
-            {cancellationCutoffHours}時間前まで）。
+            {t("notice_cutoff", { hours: cancellationCutoffHours })}
           </p>
           <Button
             type="submit"
@@ -489,10 +536,10 @@ export function ReservationForm() {
             {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 size-4 animate-spin" />
-                予約を送信しています...
+                {t("submitting")}
               </>
             ) : (
-              "この内容で予約を確定する"
+              t("submit_button")
             )}
           </Button>
         </div>

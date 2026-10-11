@@ -1,6 +1,7 @@
 "use client";
 
 import { MapPin } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 
 interface MapFacadeProps {
@@ -8,6 +9,7 @@ interface MapFacadeProps {
 }
 
 export function MapFacade({ embedUrl }: MapFacadeProps) {
+  const t = useTranslations("home");
   const [isLoaded, setIsLoaded] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -72,7 +74,7 @@ export function MapFacade({ embedUrl }: MapFacadeProps) {
     >
       {isLoaded ? (
         <iframe
-          title="周辺地図"
+          title={t("map_title")}
           src={embedUrl}
           width="100%"
           height="100%"
@@ -83,7 +85,7 @@ export function MapFacade({ embedUrl }: MapFacadeProps) {
       ) : (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-stone-100 text-stone-400 dark:bg-stone-900 dark:text-stone-500 animate-pulse">
           <MapPin className="mb-2 h-6 w-6 text-stone-400 dark:text-stone-600" />
-          <span className="font-serif text-xs">地図を読み込み中...</span>
+          <span className="font-serif text-xs">{t("map_loading")}</span>
         </div>
       )}
     </div>

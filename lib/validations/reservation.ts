@@ -34,19 +34,39 @@ export function parseDateString(dateStr: string): Date | null {
   return date;
 }
 
+export const RESERVATION_VALIDATION_MESSAGES = {
+  DATE_REQUIRED: "validation.date_required",
+  DATE_INVALID_FORMAT: "validation.date_invalid_format",
+  DATE_PAST: "validation.date_past",
+  DATE_MAX_ADVANCE: "validation.date_max_advance",
+  TIME_INVALID_FORMAT: "validation.time_invalid_format",
+  PARTY_SIZE_MIN: "validation.party_size_min",
+  PARTY_SIZE_MAX: "validation.party_size_max",
+  CUSTOMER_NAME_REQUIRED: "validation.customer_name_required",
+  CUSTOMER_NAME_MAX: "validation.customer_name_max",
+  CUSTOMER_NAME_KANA_MAX: "validation.customer_name_kana_max",
+  CUSTOMER_NAME_KANA_INVALID: "validation.customer_name_kana_invalid",
+  CUSTOMER_PHONE_REQUIRED: "validation.customer_phone_required",
+  CUSTOMER_PHONE_INVALID: "validation.customer_phone_invalid",
+  CUSTOMER_EMAIL_REQUIRED: "validation.customer_email_required",
+  CUSTOMER_EMAIL_INVALID: "validation.customer_email_invalid",
+  CUSTOMER_EMAIL_MAX: "validation.customer_email_max",
+  NOTE_MAX: "validation.note_max",
+} as const;
+
 export function createReservationSchema(maxAdvanceDays = defaultMaxAdvanceDays) {
   return z.object({
     restaurantSlug: z.string().default(DEFAULT_RESTAURANT_SLUG),
     source: z.enum(["web", "staff"]).default("web"),
     date: z
       .string()
-      .min(1, "ご来店日を選択してください")
+      .min(1, RESERVATION_VALIDATION_MESSAGES.DATE_REQUIRED)
       .superRefine((val, ctx) => {
         const targetDate = parseDateString(val);
         if (!targetDate) {
           ctx.addIssue({
             code: "custom",
-            message: "日付の形式が正しくありません (YYYY-MM-DD)",
+            message: RESERVATION_VALIDATION_MESSAGES.DATE_INVALID_FORMAT,
           });
           return;
         }
@@ -55,7 +75,7 @@ export function createReservationSchema(maxAdvanceDays = defaultMaxAdvanceDays) 
         if (targetDate.getTime() < todayStart.getTime()) {
           ctx.addIssue({
             code: "custom",
-            message: "過去の日付は指定できません",
+            message: RESERVATION_VALIDATION_MESSAGES.DATE_PAST,
           });
           return;
         }
@@ -66,32 +86,37 @@ export function createReservationSchema(maxAdvanceDays = defaultMaxAdvanceDays) 
         if (targetDate.getTime() > maxDate.getTime()) {
           ctx.addIssue({
             code: "custom",
-            message: `${maxAdvanceDays}日以上先のご予約はお電話にて承ります`,
+            message: RESERVATION_VALIDATION_MESSAGES.DATE_MAX_ADVANCE,
           });
           return;
         }
       }),
-    time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "時間の形式が正しくありません (HH:mm)"),
+    time: z
+      .string()
+      .regex(/^([01]\d|2[0-3]):[0-5]\d$/, RESERVATION_VALIDATION_MESSAGES.TIME_INVALID_FORMAT),
     partySize: z.coerce
       .number()
       .int()
-      .min(minParty, `${minParty}名様以上でご予約ください`)
-      .max(maxParty, `${maxParty}名様を超えるご予約はお電話にてお問い合わせください`),
+      .min(minParty, RESERVATION_VALIDATION_MESSAGES.PARTY_SIZE_MIN)
+      .max(maxParty, RESERVATION_VALIDATION_MESSAGES.PARTY_SIZE_MAX),
     customerName: z
       .string()
       .trim()
-      .min(1, "お名前を入力してください")
-      .max(50, "お名前は50文字以内で入力してください"),
+      .min(1, RESERVATION_VALIDATION_MESSAGES.CUSTOMER_NAME_REQUIRED)
+      .max(50, RESERVATION_VALIDATION_MESSAGES.CUSTOMER_NAME_MAX),
     customerNameKana: z
       .string()
       .trim()
-      .min(1, "フリガナを入力してください")
-      .max(50, "フリガナは50文字以内で入力してください")
-      .regex(/^[ァ-ヶー・\s　]+$/, "フリガナは全角カタカナで入力してください"),
+      .max(50, RESERVATION_VALIDATION_MESSAGES.CUSTOMER_NAME_KANA_MAX)
+      .refine(
+        (val) => !val || /^[ァ-ヶー・\s　]+$/.test(val),
+        RESERVATION_VALIDATION_MESSAGES.CUSTOMER_NAME_KANA_INVALID,
+      )
+      .default(""),
     customerPhone: z
       .string()
       .trim()
-      .min(1, "お電話番号を入力してください")
+      .min(1, RESERVATION_VALIDATION_MESSAGES.CUSTOMER_PHONE_REQUIRED)
       .refine(
         (val) => {
           try {
@@ -103,17 +128,18 @@ export function createReservationSchema(maxAdvanceDays = defaultMaxAdvanceDays) 
           }
         },
         {
-          message: "有効な電話番号を入力してください（例：090-1234-5678）",
+          message: RESERVATION_VALIDATION_MESSAGES.CUSTOMER_PHONE_INVALID,
         },
       ),
     customerEmail: z
       .string()
       .trim()
-      .min(1, "メールアドレスを入力してください")
-      .email("有効なメールアドレスを入力してください")
-      .max(100, "メールアドレスは100文字以内で入力してください"),
-    note: z.string().max(500, "ご要望は500文字以内で入力してください").optional(),
+      .min(1, RESERVATION_VALIDATION_MESSAGES.CUSTOMER_EMAIL_REQUIRED)
+      .email(RESERVATION_VALIDATION_MESSAGES.CUSTOMER_EMAIL_INVALID)
+      .max(100, RESERVATION_VALIDATION_MESSAGES.CUSTOMER_EMAIL_MAX),
+    note: z.string().max(500, RESERVATION_VALIDATION_MESSAGES.NOTE_MAX).optional(),
     idempotencyKey: z.string().trim().max(100).optional(),
+    locale: z.string().optional(),
   });
 }
 

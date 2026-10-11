@@ -1,12 +1,14 @@
 "use client";
 
 import { Menu as MenuIcon, X } from "lucide-react";
-import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
+import { LanguageSwitcher } from "@/components/language-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { restaurantConfig } from "@/config/restaurant";
+import { Link } from "@/i18n/navigation";
 
 export function Header() {
+  const t = useTranslations("common");
   const [isOpen, setIsOpen] = useState(false);
 
   const closeMenu = () => setIsOpen(false);
@@ -16,34 +18,39 @@ export function Header() {
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
         <Link href="/" className="flex items-center" onClick={closeMenu}>
           <span className="font-serif text-lg font-bold tracking-wider text-foreground transition-colors sm:text-xl">
-            {restaurantConfig.name}
+            {t("restaurant_name")}
           </span>
         </Link>
 
         <nav className="hidden items-center gap-7 text-sm font-medium text-stone-700 dark:text-stone-300 md:flex">
           <Link href="/#about" className="transition hover:text-primary">
-            当店について
+            {t("nav_about")}
           </Link>
           <Link href="/#menu" className="transition hover:text-primary">
-            お品書き
+            {t("nav_menu")}
           </Link>
           <Link href="/#access" className="transition hover:text-primary">
-            営業時間・アクセス
+            {t("nav_access")}
           </Link>
           <Link href="/#news" className="transition hover:text-primary">
-            お知らせ
+            {t("nav_news")}
           </Link>
         </nav>
 
-        <div className="flex items-center gap-2.5">
-          <ThemeToggle />
+        <div className="flex items-center gap-2">
+          <LanguageSwitcher />
+          <ThemeToggle
+            lightLabel={t("theme_light")}
+            darkLabel={t("theme_dark")}
+            ariaLabel={t("theme_toggle_aria")}
+          />
 
           <Link
             href="/#reservation"
             onClick={closeMenu}
             className="inline-flex items-center justify-center rounded bg-primary px-4 py-2 text-xs font-semibold tracking-wider text-primary-foreground shadow-xs transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-sm"
           >
-            ご予約
+            {t("reserve_button")}
           </Link>
 
           <button
@@ -51,7 +58,7 @@ export function Header() {
             onClick={() => setIsOpen(!isOpen)}
             className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-stone-700 transition hover:bg-accent dark:text-stone-300 md:hidden"
             aria-expanded={isOpen}
-            aria-label="メニューを開く"
+            aria-label={t("menu_open")}
           >
             {isOpen ? <X className="h-5 w-5" /> : <MenuIcon className="h-5 w-5" />}
           </button>
@@ -66,28 +73,28 @@ export function Header() {
               onClick={closeMenu}
               className="py-1 text-stone-700 transition hover:text-primary dark:text-stone-200"
             >
-              当店について
+              {t("nav_about")}
             </Link>
             <Link
               href="/#menu"
               onClick={closeMenu}
               className="py-1 text-stone-700 transition hover:text-primary dark:text-stone-200"
             >
-              お品書き
+              {t("nav_menu")}
             </Link>
             <Link
               href="/#access"
               onClick={closeMenu}
               className="py-1 text-stone-700 transition hover:text-primary dark:text-stone-200"
             >
-              営業時間・アクセス
+              {t("nav_access")}
             </Link>
             <Link
               href="/#news"
               onClick={closeMenu}
               className="py-1 text-stone-700 transition hover:text-primary dark:text-stone-200"
             >
-              お知らせ
+              {t("nav_news")}
             </Link>
           </nav>
         </div>
