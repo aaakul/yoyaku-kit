@@ -508,7 +508,105 @@ manager
 
 Audit records are kept even when an employee account is later deleted.
 
-## 10. Architectural Decisions
+## 10. Internationalization (i18n)
+
+The customer-facing UI supports four locales targeting Japanese restaurants and their international guests.
+
+### Supported Locales
+
+| Locale     | Language              | URL prefix       |
+| ---------- | --------------------- | ---------------- |
+| `ja`       | Japanese (default)    | `/` (no prefix)  |
+| `en`       | English               | `/en`            |
+| `zh-Hans`  | Simplified Chinese    | `/zh-Hans`       |
+| `zh-Hant`  | Traditional Chinese   | `/zh-Hant`       |
+
+### Locale Prefix Strategy
+
+The routing is configured with `localePrefix: "as-needed"`.
+
+The default locale (`ja`) serves from the root path without a prefix, which keeps URLs clean for the primary audience:
+
+```text
+/              → Japanese (default, no redirect)
+/en            → English
+/zh-Hans       → Simplified Chinese
+/zh-Hant       → Traditional Chinese
+```
+
+All non-default locales always include a prefix.
+
+### Locale Detection and Routing
+
+Locale detection runs in the Next.js proxy (middleware) via `next-intl/middleware`.
+
+Priority order:
+
+1. `NEXT_LOCALE` cookie — set when a user explicitly switches language through the language switcher.
+2. `Accept-Language` request header — browser language negotiation for first-time visitors.
+3. Default locale (`ja`) — used when no signal matches a supported locale.
+
+The middleware negotiates the closest supported locale using RFC 4647 lookup, so `zh-CN` matches `zh-Hans` and `zh-TW` matches `zh-Hant`.
+
+### Request Configuration
+
+Locale resolution for Server Components uses `next/root-params` (available since Next.js 16.3).
+
+The `i18n/request.ts` configuration reads the `[locale]` root layout parameter directly without relying on a middleware-injected header:
+
+```ts
+// i18n/request.ts
+import * as rootParams from "next/root-params";
+import { hasLocale } from "next-intl";
+
+export default getRequestConfig(async ({ locale }) => {
+  if (!locale) {
+    const paramValue = await rootParams.locale();
+    if (hasLocale(routing.locales, paramValue)) {
+      locale = paramValue;
+    } else {
+      notFound();
+    }
+  }
+  return { locale, timeZone: "Asia/Tokyo", messages: ... };
+});
+```
+
+The `locale` parameter accepts an explicit override, which is used by Route Handlers and Server Actions that pass `{ locale }` directly (because `next/root-params` does not yet cover those environments).
+
+### File Layout
+
+```text
+i18n/
+├── routing.ts      — locale list, defaultLocale, prefix strategy
+├── navigation.ts   — typed Link, redirect, usePathname, useRouter, getPathname
+└── request.ts      — getRequestConfig using next/root-params
+
+messages/
+├── ja.json         — Japanese (source language)
+├── en.json         — English
+├── zh-Hans.json    — Simplified Chinese
+└── zh-Hant.json    — Traditional Chinese
+```
+
+`i18n/routing.ts` holds only the routing configuration so that the proxy (middleware) can import it without pulling in App-runtime modules such as `next/root-params`.
+
+`i18n/navigation.ts` exposes locale-aware navigation wrappers built from `createNavigation(routing)`.
+Components import `Link`, `useRouter`, `usePathname`, and `getPathname` from this file rather than from `next/link` or `next/navigation` directly.
+
+### Timezone Binding
+
+The `timeZone` field in `getRequestConfig` is always set to `Asia/Tokyo`, matching the restaurant's operational timezone.
+
+This ensures that `useFormatter`, `getFormatter`, and date-formatting utilities produce consistent local times for all locales regardless of the server's system timezone.
+
+### Scope Boundary
+
+Only the customer-facing routes under `app/[locale]/` are internationalized.
+
+The admin dashboard (`/dashboard`) and sign-in page (`/sign-in`) are Japanese-only and are served from a separate route group (`app/(admin)/`) with `lang="ja"` fixed in the layout. They do not participate in locale routing.
+
+## 11. Architectural Decisions
 
 ### PostgreSQL as the Consistency Layer
 
@@ -557,7 +655,7 @@ Several seemingly small rules exist because they represent real operational prob
 
 The CMS is intentionally limited to useful restaurant content such as basic information and announcements.
 
-## 11. Implementation Principles
+## 12. Implementation Principles
 
 When changing reservation-related code, preserve these invariants:
 

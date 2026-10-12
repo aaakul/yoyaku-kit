@@ -47,9 +47,32 @@ Designed specifically for small, single-location restaurants in Japan, it provid
 - **Database:** PostgreSQL 16
 - **ORM:** Drizzle ORM
 - **Authentication:** Better Auth
+- **Internationalization:** next-intl 4
 - **UI:** Tailwind CSS 4, Radix UI, Lucide
 - **Testing:** Vitest
 - **Tooling:** Biome, Docker Compose
+
+## Internationalization
+
+The customer-facing interface supports four locales:
+
+| Locale    | Language            | URL prefix      |
+| --------- | ------------------- | --------------- |
+| `ja`      | Japanese (default)  | `/` (no prefix) |
+| `en`      | English             | `/en`           |
+| `zh-Hans` | Simplified Chinese  | `/zh-Hans`      |
+| `zh-Hant` | Traditional Chinese | `/zh-Hant`      |
+
+Japanese is the default locale and serves from the root path without a prefix.
+Other locales are always prefixed.
+
+Locale detection priority:
+
+1. `NEXT_LOCALE` cookie — set when the user switches language manually.
+2. `Accept-Language` header — browser negotiation for new visitors.
+3. Default locale (`ja`) — fallback.
+
+The admin dashboard and sign-in pages are Japanese-only and do not participate in locale routing.
 
 ## Engineering Notes
 
