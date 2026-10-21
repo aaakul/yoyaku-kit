@@ -14,6 +14,22 @@ import {
   updateReservationStatusAction,
 } from "@/lib/engine/reservation-actions";
 import { AUTH_ERROR, RESERVATION_ERROR } from "@/lib/errors/codes";
+import { getDayOfWeek } from "@/lib/utils";
+import { getTokyoTodayStart } from "@/lib/validations/reservation";
+
+function getFutureOpenDateStr(daysAhead = 3): string {
+  const base = getTokyoTodayStart();
+  const d = new Date(base);
+  d.setUTCDate(d.getUTCDate() + daysAhead);
+  while (true) {
+    const dateStr = d.toISOString().split("T")[0];
+    const dow = getDayOfWeek(dateStr, "Asia/Tokyo");
+    if (dow !== 1) {
+      return dateStr;
+    }
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+}
 
 describe("Authentication Flow", () => {
   it("authenticates admin credentials via API and issues session cookie", async () => {
@@ -293,9 +309,10 @@ describe("Demo Account & Read-Only Enforcement", () => {
     }
 
     // 4. Staff manual reservation from dashboard blocked for demo
+    const testBookingDate = getFutureOpenDateStr(3);
     const staffBookingRes = await createReservationAction({
       source: "staff",
-      date: "2026-10-20",
+      date: testBookingDate,
       time: "18:00",
       partySize: 2,
       customerName: "佐藤 健一",
@@ -311,7 +328,7 @@ describe("Demo Account & Read-Only Enforcement", () => {
     // 5. Customer web reservation at /reserve is NOT blocked for logged in demo account
     const webBookingRes = await createReservationAction({
       source: "web",
-      date: "2026-10-20",
+      date: testBookingDate,
       time: "18:00",
       partySize: 2,
       customerName: "佐藤 健一",

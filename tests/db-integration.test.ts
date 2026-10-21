@@ -9,8 +9,10 @@ import {
   createReservationAction,
   updateReservationStatusAction,
 } from "@/lib/engine/reservation-actions";
+import { parseDateTime } from "@/lib/engine/slots";
 import { RESERVATION_ERROR } from "@/lib/errors/codes";
-import { getDayOfWeek } from "@/lib/utils";
+import { addDays, getDayOfWeek } from "@/lib/utils";
+import { getTokyoTodayStart } from "@/lib/validations/reservation";
 
 describe("Live PostgreSQL Integration & Concurrency Verification", () => {
   let restaurantId: string;
@@ -18,15 +20,30 @@ describe("Live PostgreSQL Integration & Concurrency Verification", () => {
   const createdReservationIds: string[] = [];
 
   function getOpenDateStr(daysAhead: number): string {
-    const d = new Date();
-    d.setDate(d.getDate() + daysAhead);
+    const base = getTokyoTodayStart();
+    const d = new Date(base);
+    d.setUTCDate(d.getUTCDate() + daysAhead);
     while (true) {
       const dateStr = d.toISOString().split("T")[0];
       const dow = getDayOfWeek(dateStr, "Asia/Tokyo");
       if (dow !== 1) {
         return dateStr;
       }
-      d.setDate(d.getDate() + 1);
+      d.setUTCDate(d.getUTCDate() + 1);
+    }
+  }
+
+  function getClosedDateStr(daysAhead = 1): string {
+    const base = getTokyoTodayStart();
+    const d = new Date(base);
+    d.setUTCDate(d.getUTCDate() + daysAhead);
+    while (true) {
+      const dateStr = d.toISOString().split("T")[0];
+      const dow = getDayOfWeek(dateStr, "Asia/Tokyo");
+      if (dow === 1) {
+        return dateStr;
+      }
+      d.setUTCDate(d.getUTCDate() + 1);
     }
   }
 
@@ -485,10 +502,10 @@ describe("Live PostgreSQL Integration & Concurrency Verification", () => {
   });
 
   it("should reject reservations on closed days (e.g. Monday)", async () => {
-    // 2026-10-19 is a Monday
+    const closedDate = getClosedDateStr(1);
     const res = await createReservationAction({
       restaurantSlug: "kyoto-shabu",
-      date: "2026-10-19",
+      date: closedDate,
       time: "18:00",
       partySize: 2,
       customerName: "定休日検証",
@@ -504,10 +521,10 @@ describe("Live PostgreSQL Integration & Concurrency Verification", () => {
   });
 
   it("should reject reservations outside business operating hours", async () => {
-    // 2026-10-21 is Wednesday (open day), but 04:00 AM is outside operating hours
+    const openDate = getOpenDateStr(3);
     const res = await createReservationAction({
       restaurantSlug: "kyoto-shabu",
-      date: "2026-10-21",
+      date: openDate,
       time: "04:00",
       partySize: 2,
       customerName: "営業時間外検証",
@@ -523,9 +540,7 @@ describe("Live PostgreSQL Integration & Concurrency Verification", () => {
   });
 
   it("should calculate correct dayOffset for overnight shift midnight slots", async () => {
-    // 2026-10-23 is Friday.
-    // Midnight bookings for Friday night shift are at 00:00 and 00:30 (Saturday early morning JST).
-    const targetDate = "2026-10-23";
+    const targetDate = getOpenDateStr(3);
 
     // Test 00:00 midnight booking
     const resMidnight = await createReservationAction({
@@ -550,8 +565,8 @@ describe("Live PostgreSQL Integration & Concurrency Verification", () => {
         .from(reservations)
         .where(eq(reservations.id, resMidnight.reservationId));
       expect(rsv).toBeDefined();
-      // startAt must be 2026-10-23T15:00:00.000Z UTC (= 2026-10-24 00:00 JST)
-      expect(rsv.startAt.toISOString()).toBe("2026-10-23T15:00:00.000Z");
+      const expectedStartAt = parseDateTime(targetDate, "00:00", 1, "Asia/Tokyo");
+      expect(rsv.startAt.toISOString()).toBe(expectedStartAt.toISOString());
 
       // Cleanup
       await db.delete(reservations).where(eq(reservations.id, resMidnight.reservationId));
@@ -580,8 +595,8 @@ describe("Live PostgreSQL Integration & Concurrency Verification", () => {
         .from(reservations)
         .where(eq(reservations.id, res.reservationId));
       expect(rsv).toBeDefined();
-      // startAt must be 2026-10-23T15:30:00.000Z UTC (= 2026-10-24 00:30 JST)
-      expect(rsv.startAt.toISOString()).toBe("2026-10-23T15:30:00.000Z");
+      const expectedStartAt = parseDateTime(targetDate, "00:30", 1, "Asia/Tokyo");
+      expect(rsv.startAt.toISOString()).toBe(expectedStartAt.toISOString());
 
       // Cleanup
       await db.delete(reservations).where(eq(reservations.id, res.reservationId));
@@ -589,7 +604,7 @@ describe("Live PostgreSQL Integration & Concurrency Verification", () => {
   });
 
   it("should retrieve overnight midnight reservations when querying by shift serviceDate", async () => {
-    const targetServiceDate = "2026-10-23"; // Friday
+    const targetServiceDate = getOpenDateStr(3);
 
     const res = await createReservationAction({
       restaurantSlug: "kyoto-shabu",
@@ -608,15 +623,16 @@ describe("Live PostgreSQL Integration & Concurrency Verification", () => {
 
     expect(res.success).toBe(true);
     if (res.success && res.reservationId) {
-      // Query Friday service date: must return this overnight reservation
-      const fridayList = await getReservations({ date: targetServiceDate });
-      const foundInFriday = fridayList.find((r) => r.id === res.reservationId);
-      expect(foundInFriday).toBeDefined();
+      // Query target service date: must return this overnight reservation
+      const serviceDateList = await getReservations({ date: targetServiceDate });
+      const foundInServiceDate = serviceDateList.find((r) => r.id === res.reservationId);
+      expect(foundInServiceDate).toBeDefined();
 
-      // Query Saturday service date: must NOT return Friday night's overnight reservation
-      const saturdayList = await getReservations({ date: "2026-10-24" });
-      const foundInSaturday = saturdayList.find((r) => r.id === res.reservationId);
-      expect(foundInSaturday).toBeUndefined();
+      // Query next calendar day date: must NOT return target night's overnight reservation
+      const nextCalendarDay = addDays(targetServiceDate, 1);
+      const nextDayList = await getReservations({ date: nextCalendarDay });
+      const foundInNextDay = nextDayList.find((r) => r.id === res.reservationId);
+      expect(foundInNextDay).toBeUndefined();
 
       // Cleanup
       await db.delete(reservations).where(eq(reservations.id, res.reservationId));

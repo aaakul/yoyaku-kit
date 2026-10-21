@@ -4,7 +4,24 @@ import {
   formatTimelineHour,
 } from "@/components/dashboard/timeline-view";
 import { formatTime, getAvailableSlots, parseDateTime } from "@/lib/engine/slots";
-import { addDays, formatDisplayTime } from "@/lib/utils";
+import { addDays, formatDisplayTime, getDayOfWeek } from "@/lib/utils";
+import { getTokyoTodayStart } from "@/lib/validations/reservation";
+
+function getFutureTokyoDateStr(daysAhead: number, targetDayOfWeek?: number): string {
+  const base = getTokyoTodayStart();
+  const d = new Date(base);
+  d.setUTCDate(d.getUTCDate() + daysAhead);
+  while (true) {
+    const dateStr = d.toISOString().split("T")[0];
+    const dow = getDayOfWeek(dateStr, "Asia/Tokyo");
+    if (targetDayOfWeek !== undefined) {
+      if (dow === targetDayOfWeek) return dateStr;
+    } else if (dow !== 1) {
+      return dateStr;
+    }
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+}
 
 describe("Timezone & Overnight Slot Calculations (Asia/Tokyo)", () => {
   it("should accurately convert Tokyo date and time to UTC Date", () => {
@@ -25,7 +42,8 @@ describe("Timezone & Overnight Slot Calculations (Asia/Tokyo)", () => {
   });
 
   it("should return available slots for valid business days", async () => {
-    const slots = await getAvailableSlots({ date: "2026-10-15", partySize: 2 });
+    const openDate = getFutureTokyoDateStr(3);
+    const slots = await getAvailableSlots({ date: openDate, partySize: 2 });
     expect(slots.length).toBeGreaterThan(0);
     const availableSlot = slots.find((s) => s.available);
     expect(availableSlot).toBeDefined();
@@ -33,14 +51,14 @@ describe("Timezone & Overnight Slot Calculations (Asia/Tokyo)", () => {
   });
 
   it("should return empty slots on regular closed days (Monday)", async () => {
-    // 2026-10-19 is Monday
-    const slots = await getAvailableSlots({ date: "2026-10-19", partySize: 2 });
+    const mondayDate = getFutureTokyoDateStr(1, 1);
+    const slots = await getAvailableSlots({ date: mondayDate, partySize: 2 });
     expect(slots).toEqual([]);
   });
 
   it("should include midnight slots (00:00 and 00:30) for overnight shift", async () => {
-    // 2026-10-15 is Thursday (open business day)
-    const slots = await getAvailableSlots({ date: "2026-10-15", partySize: 2 });
+    const openDate = getFutureTokyoDateStr(3);
+    const slots = await getAvailableSlots({ date: openDate, partySize: 2 });
     const slotTimes = slots.map((s) => s.time);
     expect(slotTimes).toContain("00:00");
     expect(slotTimes).toContain("00:30");
